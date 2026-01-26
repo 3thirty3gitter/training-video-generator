@@ -26,7 +26,7 @@ export default function StepEditor({
                 </label>
                 <input
                     type="text"
-                    value={step.title}
+                    value={step.title || ''}
                     onChange={(e) => onUpdate({ title: e.target.value })}
                     placeholder="e.g., Log into the dashboard"
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -39,7 +39,7 @@ export default function StepEditor({
                 </label>
                 <input
                     type="text"
-                    value={step.action}
+                    value={step.action || ''}
                     onChange={(e) => onUpdate({ action: e.target.value })}
                     placeholder="e.g., click button[data-login] or navigate to /dashboard"
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none font-mono text-sm"
@@ -73,8 +73,9 @@ export default function StepEditor({
                     </label>
                     <button
                         onClick={onGenerateNarration}
-                        disabled={isGenerating || !step.action}
+                        disabled={isGenerating || (!step.title?.trim() && !step.action?.trim())}
                         className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-primary-700 bg-primary-50 rounded-md hover:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title={(!step.title?.trim() && !step.action?.trim()) ? "Add a title or action first" : "Generate narration with AI"}
                     >
                         {isGenerating ? (
                             <>
@@ -90,7 +91,7 @@ export default function StepEditor({
                     </button>
                 </div>
                 <textarea
-                    value={step.narration}
+                    value={step.narration || ''}
                     onChange={(e) => onUpdate({ narration: e.target.value })}
                     placeholder="Write what the narrator should say during this step..."
                     rows={8}
@@ -98,20 +99,40 @@ export default function StepEditor({
                 />
                 <p className="text-xs text-slate-500 mt-1">
                     This will be the voice-over narration in the NotebookLM video
+                    {(!step.title?.trim() && !step.action?.trim()) && (
+                        <span className="text-amber-600 font-medium"> • Add a title or action above to enable AI generation</span>
+                    )}
                 </p>
             </div>
 
-            {step.screenshot && (
+            {(step.screenshot || step.videoUrl) && (
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Screenshot
+                        {step.type === 'video' ? 'Recorded Action (Video)' : 'Step Screenshot'}
                     </label>
-                    <div className="relative rounded-lg overflow-hidden border border-slate-300">
-                        <img
-                            src={step.screenshot}
-                            alt={step.title}
-                            className="w-full h-auto"
-                        />
+                    <div className="relative rounded-lg overflow-hidden border border-slate-300 bg-black aspect-video flex items-center justify-center">
+                        {step.type === 'video' && step.videoUrl ? (
+                            <video
+                                src={step.videoUrl}
+                                controls
+                                muted
+                                loop
+                                className="w-full h-full object-contain"
+                            />
+                        ) : (
+                            <img
+                                src={step.screenshot}
+                                alt={step.title}
+                                className="w-full h-auto"
+                            />
+                        )}
+                        {step.type === 'video' && (
+                            <div className="absolute top-2 right-2">
+                                <span className="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg uppercase">
+                                    Video Action
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

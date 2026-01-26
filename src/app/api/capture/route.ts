@@ -12,7 +12,8 @@ interface Step {
 
 export async function POST(request: NextRequest) {
     try {
-        const { url, steps } = await request.json()
+        const { url, steps, options } = await request.json()
+        const { headless = true, loginWaitTime = 0 } = options || {}
 
         if (!url || !steps || steps.length === 0) {
             return NextResponse.json(
@@ -21,24 +22,66 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        console.log(`Starting screenshot capture for ${url}`)
+        console.log(`Starting screenshot capture for ${url} (Headless: ${headless})`)
 
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: headless ? 'new' : false, // Use 'new' for new headless mode, or false for visible
+            defaultViewport: null, // Allow viewport to resize with window
+            userDataDir: './.puppeteer_data', // Persist session data (cookies, localStorage)
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-accelerated-2d-canvas',
                 '--disable-gpu',
+                '--start-maximized', // Start maximized for better visibility
             ],
         })
 
-        const page = await browser.newPage()
+        const pages = await browser.pages()
+        const page = pages.length > 0 ? pages[0] : await browser.newPage()
+
         await page.setViewport({ width: 1920, height: 1080 })
 
         // Navigate to the app
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 })
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 })
+
+        // If login wait time is specified (interactive mode)
+        if (loginWaitTime > 0) {
+            console.log(`Waiting ${loginWaitTime}ms for manual login...`)
+
+            // If not headless, we can inject a helper message
+            if (!headless) {
+                await page.evaluate((waitTime) => {
+                    const div = document.createElement('div');
+                    div.id = 'gemini-login-overlay'; // ID for removal
+                    div.style.position = 'fixed';
+                    div.style.top = '10px';
+                    div.style.left = '50%';
+                    div.style.transform = 'translateX(-50%)';
+                    div.style.backgroundColor = '#ef4444';
+                    div.style.color = 'white';
+                    div.style.padding = '12px 24px';
+                    div.style.borderRadius = '8px';
+                    div.style.zIndex = '999999';
+                    div.style.fontFamily = 'system-ui, sans-serif';
+                    div.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                    div.style.fontWeight = 'bold';
+                    div.innerHTML = `⚠️ PLEASE LOG IN NOW! <br/><span style="font-weight:normal;font-size:0.9em">Automation resumes in ${Math.round(waitTime / 1000)} seconds...</span>`
+                    document.body.appendChild(div);
+                }, loginWaitTime);
+            }
+
+            await page.waitForTimeout(loginWaitTime)
+
+            // Remove the overlay before capturing anything
+            if (!headless) {
+                await page.evaluate(() => {
+                    const overlay = document.getElementById('gemini-login-overlay')
+                    if (overlay) overlay.remove()
+                })
+            }
+        }
 
         const updatedSteps: Step[] = []
 

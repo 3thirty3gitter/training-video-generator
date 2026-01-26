@@ -39,13 +39,23 @@ export default function PreviewPanel({ steps, currentStepId }: PreviewPanelProps
                                     Step {index + 1}: {step.title || 'Untitled'}
                                 </h2>
 
-                                {step.screenshot && (
-                                    <div className="my-4 rounded-lg overflow-hidden border border-slate-300">
-                                        <img
-                                            src={step.screenshot}
-                                            alt={step.title}
-                                            className="w-full h-auto"
-                                        />
+                                {(step.screenshot || step.videoUrl) && (
+                                    <div className="my-4 rounded-lg overflow-hidden border border-slate-300 bg-black aspect-video flex items-center justify-center">
+                                        {step.type === 'video' && step.videoUrl ? (
+                                            <video
+                                                src={step.videoUrl}
+                                                controls
+                                                muted
+                                                loop
+                                                className="w-full h-full object-contain"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={step.screenshot}
+                                                alt={step.title}
+                                                className="w-full h-auto"
+                                            />
+                                        )}
                                     </div>
                                 )}
 

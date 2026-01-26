@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PROJECT_NAME}} - Training Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.4.0/lucide.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { background-color: #020617; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .aspect-video { aspect-ratio: 16 / 9; }
+        .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .step-in { animation: slideIn 0.5s ease-out forwards; }
+        @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body class="overflow-hidden">
+    <div id="app" class="h-screen flex flex-col">
+        <!-- Header -->
+        <header class="px-8 py-6 border-b border-slate-800 flex items-center justify-between glass">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i data-lucide="monitor" class="text-white w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-tight" id="project-title">{{PROJECT_NAME}}</h1>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Interactive Tutorial</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 text-[11px] font-bold text-slate-400">
+                    STEP <span id="current-step-num" class="text-indigo-400">1</span> OF <span id="total-steps-num">0</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            <!-- Visual Area -->
+            <div class="flex-[3] bg-slate-900 flex items-center justify-center p-4 lg:p-12 relative">
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-indigo-500/10 blur-[120px] rounded-full"></div>
+                
+                <div class="w-full max-w-5xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-slate-800 relative" id="media-container">
+                    <!-- Media injected here -->
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 bg-slate-950 border-l border-slate-800 flex flex-col p-8 lg:p-12 justify-between">
+                <div class="space-y-8" id="content-area">
+                    <div class="space-y-2">
+                        <span class="text-indigo-400 font-black text-[12px] uppercase tracking-[0.2em]">Current Step</span>
+                        <h2 class="text-3xl lg:text-4xl font-extrabold text-white leading-tight" id="step-title">Step Title</h2>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="w-12 h-1 bg-indigo-500 rounded-full"></div>
+                        <p class="text-slate-400 leading-relaxed text-lg lg:text-xl font-medium" id="step-narration">Narration text goes here.</p>
+                    </div>
+
+                    <div id="action-wrapper" class="bg-slate-900/50 rounded-2xl p-4 border border-slate-800/50 hidden">
+                        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Automation Target</span>
+                        <code class="text-indigo-300 font-mono text-xs break-all bg-indigo-500/10 px-2 py-1 rounded inline-block" id="step-action"></code>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="pt-12 flex flex-col gap-4">
+                    <div class="flex gap-3">
+                        <button id="prev-btn" class="p-4 bg-slate-900 text-slate-400 rounded-2xl border border-slate-800 hover:bg-slate-800 transition-all opacity-50 cursor-not-allowed">
+                            <i data-lucide="chevron-left"></i>
+                        </button>
+                        <button id="next-btn" class="flex-1 bg-indigo-600 text-white rounded-2xl font-bold text-lg hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3 px-8">
+                            <span>Next Step</span>
+                            <i data-lucide="arrow-right"></i>
+                        </button>
+                    </div>
+                    <div class="flex justify-between px-2">
+                        <div class="flex gap-1" id="progress-dots"></div>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Progress</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const STEPS = {{PROJECT_STEPS}};
+        let currentIndex = 0;
+
+        function render() {
+            const step = STEPS[currentIndex];
+            const mediaContainer = document.getElementById('media-container');
+            const contentArea = document.getElementById('content-area');
+            
+            // Animation trigger
+            contentArea.classList.remove('step-in');
+            void contentArea.offsetWidth;
+            contentArea.classList.add('step-in');
+
+            // Metadata
+            document.getElementById('current-step-num').textContent = currentIndex + 1;
+            document.getElementById('step-title').textContent = step.title || 'Untitled Step';
+            document.getElementById('step-narration').textContent = step.narration || '';
+            
+            // Action
+            const actionWrapper = document.getElementById('action-wrapper');
+            if (step.action) {
+                actionWrapper.classList.remove('hidden');
+                document.getElementById('step-action').textContent = step.action;
+            } else {
+                actionWrapper.classList.add('hidden');
+            }
+
+            // Media
+            mediaContainer.innerHTML = '';
+            if (step.type === 'video') {
+                const video = document.createElement('video');
+                video.src = step.videoUrl;
+                video.controls = true;
+                video.autoplay = true;
+                video.loop = true;
+                video.className = 'w-full h-full object-contain';
+                mediaContainer.appendChild(video);
+                
+                const badge = document.createElement('div');
+                badge.className = 'absolute top-6 left-6 px-3 py-1.5 bg-slate-950/60 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/80';
+                badge.textContent = 'Recorded Action';
+                mediaContainer.appendChild(badge);
+            } else {
+                const img = document.createElement('img');
+                img.src = step.screenshot;
+                img.className = 'w-full h-full object-contain';
+                mediaContainer.appendChild(img);
+                
+                const badge = document.createElement('div');
+                badge.className = 'absolute top-6 left-6 px-3 py-1.5 bg-slate-950/60 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/80';
+                badge.textContent = 'Snapshot';
+                mediaContainer.appendChild(badge);
+            }
+
+            // Buttons
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            
+            if (currentIndex === 0) {
+                prevBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                prevBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            if (currentIndex === STEPS.length - 1) {
+                nextBtn.querySelector('span').textContent = 'Finish Tutorial';
+                nextBtn.querySelector('i').setAttribute('data-lucide', 'check-circle-2');
+            } else {
+                nextBtn.querySelector('span').textContent = 'Next Step';
+                nextBtn.querySelector('i').setAttribute('data-lucide', 'arrow-right');
+            }
+            lucide.createIcons();
+
+            // Dots
+            const dots = document.getElementById('progress-dots');
+            dots.innerHTML = '';
+            STEPS.forEach((_, i) => {
+                const dot = document.createElement('div');
+                dot.className = `h-1.5 rounded-full transition-all duration-300 ${i === currentIndex ? 'w-8 bg-indigo-500' : 'w-2 bg-slate-800'}`;
+                dots.appendChild(dot);
+            });
+        }
+
+        document.getElementById('next-btn').onclick = () => {
+            if (currentIndex < STEPS.length - 1) {
+                currentIndex++;
+                render();
+            }
+        };
+
+        document.getElementById('prev-btn').onclick = () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                render();
+            }
+        };
+
+        document.getElementById('total-steps-num').textContent = STEPS.length;
+        lucide.createIcons();
+        render();
+    </script>
+</body>
+</html>
