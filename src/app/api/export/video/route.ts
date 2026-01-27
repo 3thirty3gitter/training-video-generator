@@ -23,10 +23,15 @@ export async function POST(request: NextRequest) {
 
         // 1. Generate Audio for all steps
         const audioPaths: string[] = [];
+        const voiceTld = projectData.voice || 'com';
+        const voiceStyle = projectData.voiceStyle || 'normal';
+        const voiceSpeed = projectData.voiceSpeed || 1;
+        console.log(`[Export-Video] Using Voice: ${voiceTld}, Style: ${voiceStyle}, Speed: ${voiceSpeed}`);
+
         for (const step of steps) {
             if (step.narration) {
                 console.log(`[Export-Video] Generating TTS for: ${step.title}`);
-                const audioPath = await generateNarrationAudio(step.id, step.narration);
+                const audioPath = await generateNarrationAudio(step.id, step.narration, voiceTld, voiceStyle, voiceSpeed);
                 audioPaths.push(audioPath);
             } else {
                 audioPaths.push(''); // No audio for this step

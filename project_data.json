@@ -1,26 +1,8 @@
 {
   "projectName": "PrintPilot User Guide",
   "appUrl": "https://www.printpilot.ca",
-  "steps": [
-    {
-      "id": "step-1769389352606",
-      "title": "Video Action",
-      "action": "",
-      "narration": "Here's a breakdown of the user's interaction in the video and a 2-sentence tutorial narration:\n\n**User Interaction:**\n\nThe user starts on the PrintPilot homepage. They click the \"Sign In\" button. On the sign-in form, the user enters their email and password. After submitting their credentials, they are logged in and land on the dashboard. A pop-up then appears to guide the user to set up their profile and company information. The user proceeds with setting up their profile.\n\n**Narration:**\n\nIn this step, we're logging into PrintPilot using valid credentials. Next, we will set up our profile to personalize the experience.\n",
-      "type": "video",
-      "screenshot": "/recordings/recording-1769389273160.mp4",
-      "videoUrl": "/recordings/recording-1769389273160.mp4",
-      "waitTime": 1000
-    },
-    {
-      "id": "step-1769390443331",
-      "title": "Video Action",
-      "action": "",
-      "narration": "Here's a breakdown of the software interaction and a tutorial narration:\n\n**Action Analysis:**\n\nThe user is within the \"My Profile\" section of a software settings page. They begin by clicking the \"Change Avatar\" button, which opens a popup window. Inside the popup, they click \"Choose Image\" and select an image from their computer's file system.  Finally, they click \"Save & Upload\" to update their profile picture with the selected image and then click \"Update My Profile\".\n\n**Narration:**\n\n\"In this step, the user updates their profile picture by uploading an image.  First, the user opens the update profile picture popup, chooses the image, and selects save and upload, followed by updating the whole profile.\"\n",
-      "type": "video",
-      "screenshot": "/recordings/recording-1769389978976.mp4",
-      "videoUrl": "/recordings/recording-1769389978976.mp4",
-      "waitTime": 1000
-    }
-  ]
+  "voice": "au-natasha",
+  "voiceStyle": "normal",
+  "voiceSpeed": 1,
+  "steps": []
 }

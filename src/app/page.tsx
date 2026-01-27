@@ -20,6 +20,9 @@ export interface TutorialStep {
 export default function Home() {
     const [projectName, setProjectName] = useState('')
     const [appUrl, setAppUrl] = useState('')
+    const [voice, setVoice] = useState('com')
+    const [voiceStyle, setVoiceStyle] = useState('normal')
+    const [voiceSpeed, setVoiceSpeed] = useState(1)
     const [steps, setSteps] = useState<TutorialStep[]>([])
     const [currentStep, setCurrentStep] = useState<string | null>(null)
     const [isCapturing, setIsCapturing] = useState(false)
@@ -37,6 +40,9 @@ export default function Home() {
                 const data = await res.json()
                 setProjectName(data.projectName || '')
                 setAppUrl(data.appUrl || '')
+                setVoice(data.voice || 'com')
+                setVoiceStyle(data.voiceStyle || 'normal')
+                setVoiceSpeed(data.voiceSpeed || 1)
                 setSteps(data.steps || [])
                 if (data.steps && data.steps.length > 0) {
                     setCurrentStep(data.steps[0].id)
@@ -56,13 +62,13 @@ export default function Home() {
 
         const saveProject = async () => {
             try {
-                const dataToSave = { projectName, appUrl, steps }
+                const dataToSave = { projectName, appUrl, voice, voiceStyle, voiceSpeed, steps }
                 await fetch('/api/project/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(dataToSave)
                 })
-                console.log('Project auto-saved to disk')
+                console.log('Project auto-saved to disk', { voice, voiceStyle, voiceSpeed })
             } catch (e) {
                 console.error('Auto-save failed', e)
             }
@@ -70,7 +76,7 @@ export default function Home() {
 
         const timeoutId = setTimeout(saveProject, 1000)
         return () => clearTimeout(timeoutId)
-    }, [projectName, appUrl, steps, loaded])
+    }, [projectName, appUrl, voice, voiceStyle, voiceSpeed, steps, loaded])
 
     const clearAll = async () => {
         if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
@@ -78,6 +84,7 @@ export default function Home() {
                 await fetch('/api/project/load', { method: 'POST' }) // POST to load clears it
                 setProjectName('')
                 setAppUrl('')
+                setVoice('com')
                 setSteps([])
                 setCurrentStep(null)
                 localStorage.removeItem('training-video-gen-data') // Also clear legacy
@@ -171,6 +178,32 @@ export default function Home() {
             alert('Failed to connect to render engine')
         } finally {
             setIsGenerating(false)
+        }
+    }
+
+    const [isPlayingPreview, setIsPlayingPreview] = useState(false)
+    const playVoicePreview = async () => {
+        if (isPlayingPreview) return
+        setIsPlayingPreview(true)
+        try {
+            const res = await fetch('/api/voice-preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ voice, voiceStyle, voiceSpeed })
+            })
+            const data = await res.json()
+            if (data.success && data.audioUrl) {
+                const audio = new Audio(data.audioUrl)
+                audio.onended = () => setIsPlayingPreview(false)
+                audio.onerror = () => setIsPlayingPreview(false)
+                audio.play()
+            } else {
+                setIsPlayingPreview(false)
+                alert('Wait, we cannot generate a preview for this voice right now.')
+            }
+        } catch (e) {
+            console.error('Preview error', e)
+            setIsPlayingPreview(false)
         }
     }
 
@@ -280,6 +313,108 @@ export default function Home() {
                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-600 transition-all outline-none"
                                     placeholder="https://app.example.com"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Narrator</label>
+                                <div className="space-y-3">
+                                    <div className="flex gap-2">
+                                        <select
+                                            value={voice}
+                                            onChange={(e) => setVoice(e.target.value)}
+                                            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-600 transition-all outline-none appearance-none cursor-pointer"
+                                            title="Select narrator"
+                                        >
+                                            <optgroup label="🌟 Kokoro (High Quality Neural)">
+                                                <option value="kokoro-af_sarah">Sarah (US Female)</option>
+                                                <option value="kokoro-af_nicole">Nicole (US Female)</option>
+                                                <option value="kokoro-af_bella">Bella (US Female)</option>
+                                                <option value="kokoro-am_michael">Michael (US Male)</option>
+                                                <option value="kokoro-am_adam">Adam (US Male)</option>
+                                                <option value="kokoro-bf_emma">Emma (UK Female)</option>
+                                                <option value="kokoro-bm_george">George (UK Male)</option>
+                                            </optgroup>
+                                            <optgroup label="🇺🇸 United States">
+                                                <option value="us-aria">Aria (Professional)</option>
+                                                <option value="us-guy">Guy (Casual)</option>
+                                                <option value="us-jenny">Jenny (Friendly)</option>
+                                                <option value="us-christopher">Christopher (Serious)</option>
+                                                <option value="us-eric">Eric (Business)</option>
+                                                <option value="us-michelle">Michelle (Warm)</option>
+                                                <option value="us-roger">Roger (Authoritative)</option>
+                                            </optgroup>
+                                            <optgroup label="🇬🇧 United Kingdom">
+                                                <option value="uk-sonia">Sonia (Professional)</option>
+                                                <option value="uk-ryan">Ryan (Casual)</option>
+                                                <option value="uk-libby">Libby (Friendly)</option>
+                                                <option value="uk-abbi">Abbi (Serious)</option>
+                                            </optgroup>
+                                            <optgroup label="🇦🇺 Australia">
+                                                <option value="au-natasha">Natasha</option>
+                                                <option value="au-william">William</option>
+                                            </optgroup>
+                                            <optgroup label="🇮🇳 India">
+                                                <option value="in-neerja">Neerja</option>
+                                                <option value="in-prabhat">Prabhat</option>
+                                            </optgroup>
+                                        </select>
+                                        <button
+                                            onClick={playVoicePreview}
+                                            disabled={isPlayingPreview}
+                                            className="px-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors disabled:opacity-50"
+                                            title="Preview Voice"
+                                        >
+                                            {isPlayingPreview ? (
+                                                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] font-bold">Try</span>
+                                                </div>
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-400 mb-1 ml-1">Tone</label>
+                                            <select
+                                                value={voiceStyle}
+                                                onChange={(e) => setVoiceStyle(e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-100 focus:border-purple-600 outline-none"
+                                            >
+                                                <option value="normal">Normal</option>
+                                                <optgroup label="Cheerful">
+                                                    <option value="cheerful">Cheerful (Brisk)</option>
+                                                    <option value="cheerful-2">Cheerful (Bright)</option>
+                                                    <option value="cheerful-3">Cheerful (Excited)</option>
+                                                </optgroup>
+                                                <optgroup label="Serious">
+                                                    <option value="serious">Serious (Calm)</option>
+                                                    <option value="serious-2">Serious (Deep)</option>
+                                                    <option value="serious-3">Serious (Authoritative)</option>
+                                                </optgroup>
+                                                <optgroup label="Business">
+                                                    <option value="business">Business (Professional)</option>
+                                                    <option value="business-2">Business (Direct)</option>
+                                                    <option value="business-3">Business (Soft)</option>
+                                                </optgroup>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-400 mb-1 ml-1">Speed</label>
+                                            <select
+                                                value={voiceSpeed}
+                                                onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-100 focus:border-purple-600 outline-none"
+                                            >
+                                                <option value={0.75}>0.75x (Slow)</option>
+                                                <option value={1}>1.0x (Normal)</option>
+                                                <option value={1.1}>1.1x (Brisk)</option>
+                                                <option value={1.25}>1.25x (Fast)</option>
+                                                <option value={1.5}>1.5x (Rapid)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

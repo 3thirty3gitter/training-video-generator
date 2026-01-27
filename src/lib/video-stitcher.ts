@@ -4,6 +4,7 @@ import fs from 'fs';
 import { TutorialStep } from '@/app/page';
 
 // Resolve ffmpeg path manually like we did in video-recorder
+// Resolve ffmpeg path manually like we did in video-recorder
 const isWin = process.platform === 'win32';
 const ffmpegPath = path.join(
     process.cwd(),
@@ -13,6 +14,15 @@ const ffmpegPath = path.join(
     isWin ? 'ffmpeg.exe' : 'ffmpeg'
 );
 ffmpeg.setFfmpegPath(ffmpegPath);
+
+const ffprobePath = path.join(
+    process.cwd(),
+    'node_modules',
+    '@ffprobe-installer',
+    isWin ? 'win32-x64' : 'linux-x64',
+    isWin ? 'ffprobe.exe' : 'ffprobe'
+);
+ffmpeg.setFfprobePath(ffprobePath);
 
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'exports', 'videos');
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -66,10 +76,18 @@ async function processSteps(steps: TutorialStep[], audioPaths: string[], outputP
 
             if (step.type === 'video' && step.videoUrl) {
                 // If it's a video, we need to loop/stretch it or just overlay audio
-                // Convert URL to absolute path if needed
-                const videoPath = step.videoUrl.startsWith('http')
-                    ? path.join(process.cwd(), 'public', step.videoUrl.replace(/^\//, ''))
-                    : step.videoUrl;
+                let videoPath = step.videoUrl;
+
+                // If it's a local path (starts with /) or relative, resolve to public dir
+                if (!videoPath.startsWith('http') && !videoPath.match(/^[a-zA-Z]:\\/)) {
+                    videoPath = path.join(process.cwd(), 'public', step.videoUrl.replace(/^\//, ''));
+                }
+
+                if (!fs.existsSync(videoPath)) {
+                    console.error(`[Stitcher] Video file not found: ${videoPath}`);
+                    reject(new Error(`Video file not found: ${videoPath}`));
+                    return;
+                }
 
                 cmd = cmd.input(videoPath);
             } else if (step.screenshot) {
@@ -78,12 +96,15 @@ async function processSteps(steps: TutorialStep[], audioPaths: string[], outputP
                     ? saveBase64Image(step.screenshot, i, tempDir)
                     : path.join(process.cwd(), 'public', step.screenshot.replace(/^\//, ''));
 
-                cmd = cmd.input(imgPath).loop(3); // Default 3s for images
+                cmd = cmd.input(imgPath).inputOptions('-loop 1');
             }
 
             // Add the audio
             if (audioPath) {
                 cmd = cmd.input(audioPath);
+            } else if (step.screenshot) {
+                // If it's an image and no audio, default to 3 seconds
+                cmd = cmd.duration(3);
             }
 
             cmd

@@ -49,7 +49,7 @@ You can now:
 
 - ✅ **Browser Automation** - Uses Puppeteer to navigate your app and capture screenshots
 - ✅ **Smart Actions** - Define clicks, navigation, scrolling via simple syntax
-- ✅ **AI Narration** - Template-based narration generation (easily upgradeable to OpenAI)
+- ✅ **AI Narration** - Professional narration generation powered by Google Gemini AI
 - ✅ **Document Export** - Creates Word documents with embedded images
 - ✅ **Live Preview** - See how your tutorial will look before exporting
 - ✅ **Reusable** - Save time on every SaaS product you build
@@ -170,13 +170,9 @@ The app will be available at **http://localhost:3000**
 
 Currently, no environment variables are required. Future enhancements may need:
 
-```env
-# Future: OpenAI integration
-OPENAI_API_KEY=your_openai_api_key
+# Gemini API Key (Required for AI features)
+GEMINI_API_KEY=your_gemini_api_key
 
-# Future: GitHub authentication
-GITHUB_TOKEN=your_github_token
-```
 
 ---
 
@@ -312,24 +308,10 @@ Click **"Export for NotebookLM"** to download a `.docx` file with:
 ```
 
 **Current Implementation:**
-- Template-based (4 random templates)
-- No external API calls
-- Instant response
+- Uses Google Gemini 2.0 Flash (Multimodal)
+- Analyzes screenshots to write descriptive narration
+- Falls back to templates if no API key is provided
 
-**Future Enhancement:**
-Replace with OpenAI API for better narration:
-```typescript
-const response = await openai.chat.completions.create({
-  model: "gpt-4",
-  messages: [{
-    role: "system",
-    content: "You are a professional voiceover writer for SaaS training videos."
-  }, {
-    role: "user",
-    content: `Write narration for: ${title}. Action: ${action}. Context: ${context}`
-  }]
-});
-```
 
 ---
 
@@ -735,42 +717,7 @@ npm run dev -- -p 3001
 
 ### Priority 1 (High Value, Low Effort)
 
-#### 1. OpenAI Integration
-Replace template-based narration with GPT-4:
-
-```typescript
-// .env.local
-OPENAI_API_KEY=sk-...
-
-// src/app/api/generate-narration/route.ts
-import OpenAI from 'openai';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const completion = await openai.chat.completions.create({
-  model: "gpt-4",
-  messages: [{
-    role: "system",
-    content: "You are a professional SaaS training video narrator. Write engaging, concise narration."
-  }, {
-    role: "user",
-    content: `Tutorial: ${context}\nStep: ${title}\nAction: ${action}\n\nWrite 2-3 sentences of narration.`
-  }]
-});
-
-const narration = completion.choices[0].message.content;
-```
-
-**Benefits:**
-- Much better narration quality
-- Contextual understanding
-- Adjustable tone/style
-
-**Cost:** ~$0.01-0.05 per video
-
----
-
-#### 2. Template Library
+#### 1. Template Library
 Save and reuse tutorial templates:
 
 **Database Schema:**

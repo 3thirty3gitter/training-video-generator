@@ -28,3 +28,25 @@ Thumbs.db
 *.swp
 *.swo
 .puppeteer_data/
+
+# AI Models
+*.onnx
+*.bin
+voices.json
+
+# Audio/Video Temp Files
+test-*.mp3
+test-*.wav
+temp_stitch/
+public/exports/videos/*.mp4
+public/recordings/
+test_input.txt
+test-tts.js
+test-ffmpeg.js
+setup-kokoro.js
+*-debug.log
+wizard_debug.log
+
+# Python Cache
+__pycache__/
+*.pyc

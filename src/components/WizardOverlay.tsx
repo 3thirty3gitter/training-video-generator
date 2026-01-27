@@ -27,7 +27,6 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
         setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 50))
     }
 
-    // Global keyboard shortcuts for the Wizard
     useEffect(() => {
         if (!isOpen) return
 
@@ -37,17 +36,29 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
 
             if (e.code === 'Space' || e.code === 'Enter') {
                 e.preventDefault()
+                
+                // Idle -> Start
                 if (state === 'idle' && url) {
                     startSession()
-                } else if (state === 'review') {
+                } 
+                // Review -> Add Step
+                else if (state === 'review') {
                     handleAddStep()
+                }
+                // Waiting (Video) -> Start Record
+                else if (state === 'waiting-for-user' && mode === 'video') {
+                    triggerBrowserStart()
+                }
+                // Recording -> Stop Record
+                else if (state === 'recording') {
+                    handleStopRecording()
                 }
             }
         }
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [isOpen, state, url, currentResult])
+    }, [isOpen, state, url, currentResult, mode])
 
     // Effect for the 20s recording timer
     useEffect(() => {
