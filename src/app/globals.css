@@ -16,12 +16,9 @@
 
 body {
   color: rgb(var(--foreground));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background))
-    )
-    rgb(var(--background));
+  background: radial-gradient(circle at top right, #1e1b4b, #020617);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 @layer utilities {

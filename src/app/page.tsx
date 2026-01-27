@@ -15,6 +15,7 @@ export interface TutorialStep {
     screenshot?: string // Still used for thumbnail
     videoUrl?: string
     waitTime?: number
+    customAudioUrl?: string
 }
 
 export default function Home() {
@@ -23,6 +24,8 @@ export default function Home() {
     const [voice, setVoice] = useState('com')
     const [voiceStyle, setVoiceStyle] = useState('normal')
     const [voiceSpeed, setVoiceSpeed] = useState(1)
+    const [backgroundMusic, setBackgroundMusic] = useState('none')
+    const [musicVolume, setMusicVolume] = useState(0.1)
     const [steps, setSteps] = useState<TutorialStep[]>([])
     const [currentStep, setCurrentStep] = useState<string | null>(null)
     const [isCapturing, setIsCapturing] = useState(false)
@@ -30,6 +33,8 @@ export default function Home() {
     const [isInteractive, setIsInteractive] = useState(false)
     const [loginWaitTime, setLoginWaitTime] = useState(0)
     const [showWizard, setShowWizard] = useState(false)
+    const [includeCaptions, setIncludeCaptions] = useState(false)
+    const [transition, setTransition] = useState('none')
     const [loaded, setLoaded] = useState(false)
 
     // Load from PROJECT_DATA.JSON on mount
@@ -43,6 +48,12 @@ export default function Home() {
                 setVoice(data.voice || 'com')
                 setVoiceStyle(data.voiceStyle || 'normal')
                 setVoiceSpeed(data.voiceSpeed || 1)
+                // Default to false if not present
+                setIncludeCaptions(data.includeCaptions === true)
+                setIncludeCaptions(data.includeCaptions === true)
+                setTransition(data.transition || 'none')
+                setBackgroundMusic(data.backgroundMusic || 'none')
+                setMusicVolume(data.musicVolume || 0.1)
                 setSteps(data.steps || [])
                 if (data.steps && data.steps.length > 0) {
                     setCurrentStep(data.steps[0].id)
@@ -62,7 +73,7 @@ export default function Home() {
 
         const saveProject = async () => {
             try {
-                const dataToSave = { projectName, appUrl, voice, voiceStyle, voiceSpeed, steps }
+                const dataToSave = { projectName, appUrl, voice, voiceStyle, voiceSpeed, includeCaptions, transition, backgroundMusic, musicVolume, steps }
                 await fetch('/api/project/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -76,7 +87,7 @@ export default function Home() {
 
         const timeoutId = setTimeout(saveProject, 1000)
         return () => clearTimeout(timeoutId)
-    }, [projectName, appUrl, voice, voiceStyle, voiceSpeed, steps, loaded])
+    }, [projectName, appUrl, voice, voiceStyle, voiceSpeed, includeCaptions, transition, backgroundMusic, musicVolume, steps, loaded])
 
     const clearAll = async () => {
         if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
@@ -85,6 +96,9 @@ export default function Home() {
                 setProjectName('')
                 setAppUrl('')
                 setVoice('com')
+                setTransition('none')
+                setBackgroundMusic('none')
+                setMusicVolume(0.1)
                 setSteps([])
                 setCurrentStep(null)
                 localStorage.removeItem('training-video-gen-data') // Also clear legacy
@@ -208,16 +222,16 @@ export default function Home() {
     }
 
     return (
-        <main className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+        <main className="min-h-screen bg-transparent text-slate-100 flex flex-col">
             {/* Header */}
-            <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between shadow-sm sticky top-0 z-40">
+            <header className="bg-slate-900/60 backdrop-blur-xl border-b border-white/5 px-8 py-4 flex items-center justify-between sticky top-0 z-40">
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-100">
                         <Camera size={24} />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-800">Video Generator Pro</h1>
-                        <p className="text-xs text-slate-500 font-medium">Create professional training guides automatically</p>
+                        <h1 className="text-xl font-bold text-slate-100">Video Generator Pro</h1>
+                        <p className="text-xs text-slate-400 font-medium">Create professional training guides automatically</p>
                     </div>
                 </div>
 
@@ -242,12 +256,12 @@ export default function Home() {
 
             <div className="flex-1 flex overflow-hidden">
                 {/* Steps Sidebar */}
-                <aside className="w-96 bg-white border-r border-slate-200 flex flex-col shadow-sm">
-                    <div className="p-6 border-b border-slate-100">
+                <aside className="w-96 bg-slate-900/40 backdrop-blur-xl border-r border-white/5 flex flex-col">
+                    <div className="p-6 border-b border-white/5">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                            <h2 className="font-bold text-slate-200 flex items-center gap-2">
                                 Tutorial Steps
-                                <span className="text-xs bg-slate-100 text-slate-500 py-0.5 px-2 rounded-full">{steps.length}</span>
+                                <span className="text-xs bg-slate-800/50 text-slate-400 py-0.5 px-2 rounded-full">{steps.length}</span>
                             </h2>
                             <div className="flex gap-2">
                                 <button
@@ -295,22 +309,22 @@ export default function Home() {
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Project Name</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Project Name</label>
                                 <input
                                     type="text"
                                     value={projectName}
                                     onChange={(e) => setProjectName(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-600 transition-all outline-none"
+                                    className="w-full px-4 py-2.5 bg-slate-950/50 border border-white/10 text-white rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none placeholder-slate-700"
                                     placeholder="e.g. Dashboard Walkthrough"
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Application URL</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Application URL</label>
                                 <input
                                     type="url"
                                     value={appUrl}
                                     onChange={(e) => setAppUrl(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-600 transition-all outline-none"
+                                    className="w-full px-4 py-2.5 bg-slate-950/50 border border-white/10 text-white rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none placeholder-slate-700"
                                     placeholder="https://app.example.com"
                                 />
                             </div>
@@ -321,7 +335,7 @@ export default function Home() {
                                         <select
                                             value={voice}
                                             onChange={(e) => setVoice(e.target.value)}
-                                            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-600 transition-all outline-none appearance-none cursor-pointer"
+                                            className="flex-1 px-4 py-2.5 bg-slate-950/50 border border-white/10 text-white rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none appearance-none cursor-pointer"
                                             title="Select narrator"
                                         >
                                             <optgroup label="🌟 Kokoro (High Quality Neural)">
@@ -360,7 +374,7 @@ export default function Home() {
                                         <button
                                             onClick={playVoicePreview}
                                             disabled={isPlayingPreview}
-                                            className="px-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors disabled:opacity-50"
+                                            className="px-3 bg-slate-800/50 border border-white/5 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-colors disabled:opacity-50"
                                             title="Preview Voice"
                                         >
                                             {isPlayingPreview ? (
@@ -375,11 +389,11 @@ export default function Home() {
 
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label className="block text-[9px] font-bold text-slate-400 mb-1 ml-1">Tone</label>
+                                            <label className="block text-[9px] font-bold text-slate-500 mb-1 ml-1">Tone</label>
                                             <select
                                                 value={voiceStyle}
                                                 onChange={(e) => setVoiceStyle(e.target.value)}
-                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-100 focus:border-purple-600 outline-none"
+                                                className="w-full px-3 py-2 bg-slate-950/50 border border-white/10 text-white rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
                                             >
                                                 <option value="normal">Normal</option>
                                                 <optgroup label="Cheerful">
@@ -400,11 +414,11 @@ export default function Home() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-[9px] font-bold text-slate-400 mb-1 ml-1">Speed</label>
+                                            <label className="block text-[9px] font-bold text-slate-500 mb-1 ml-1">Speed</label>
                                             <select
                                                 value={voiceSpeed}
                                                 onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
-                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-100 focus:border-purple-600 outline-none"
+                                                className="w-full px-3 py-2 bg-slate-950/50 border border-white/10 text-white rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
                                             >
                                                 <option value={0.75}>0.75x (Slow)</option>
                                                 <option value={1}>1.0x (Normal)</option>
@@ -414,37 +428,88 @@ export default function Home() {
                                             </select>
                                         </div>
                                     </div>
+                                    <div className="mt-4 flex items-center gap-3 bg-slate-950/30 border border-white/5 p-2 rounded-xl">
+                                        <div
+                                            onClick={() => setIncludeCaptions(!includeCaptions)}
+                                            className={`relative w-10 h-6 transition-colors rounded-full cursor-pointer ${includeCaptions ? 'bg-purple-600' : 'bg-slate-700'}`}
+                                        >
+                                            <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${includeCaptions ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </div>
+                                        <label className="text-xs font-bold text-slate-400 cursor-pointer" onClick={() => setIncludeCaptions(!includeCaptions)}>
+                                            Include Closed Captions
+                                        </label>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 mb-1 ml-1 uppercase tracking-wider">Transitions</label>
+                                        <select
+                                            value={transition}
+                                            onChange={(e) => setTransition(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-white/10 text-white rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
+                                        >
+                                            <option value="none">None (Cut)</option>
+                                            <option value="fade">Fade to Black</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 mb-1 ml-1 uppercase tracking-wider">Background Music</label>
+                                        <select
+                                            value={backgroundMusic}
+                                            onChange={(e) => setBackgroundMusic(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-white/10 text-white rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none mb-2"
+                                        >
+                                            <option value="none">None</option>
+                                            <option value="upbeat">Upbeat & Corporate</option>
+                                            <option value="lofi">Lofi Focus</option>
+                                            <option value="cinematic">Cinematic Ambient</option>
+                                        </select>
+                                        {backgroundMusic !== 'none' && (
+                                            <div className="flex items-center gap-2 px-1">
+                                                <span className="text-[9px] text-slate-500 font-bold">VOL</span>
+                                                <input
+                                                    type="range"
+                                                    min="0.05"
+                                                    max="0.5"
+                                                    step="0.05"
+                                                    value={musicVolume}
+                                                    onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+                                                    className="flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         {steps.map((step, index) => (
                             <div
                                 key={step.id}
                                 onClick={() => setCurrentStep(step.id)}
                                 className={`group relative p-4 rounded-2xl transition-all cursor-pointer border shadow-sm ${currentStep === step.id
-                                    ? 'bg-purple-600 border-purple-500 text-white shadow-purple-200'
-                                    : 'bg-white border-slate-100 hover:border-purple-300 hover:shadow-md'
+                                    ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/50'
+                                    : 'bg-slate-800/40 border-white/5 hover:border-purple-500/50 hover:bg-slate-800/80'
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <span className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-black ${currentStep === step.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
+                                    <span className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-black ${currentStep === step.id ? 'bg-white/20 text-white' : 'bg-slate-900/50 text-slate-400'
                                         }`}>
                                         {index + 1}
                                     </span>
                                     <div className="flex-1 overflow-hidden">
-                                        <div className={`font-bold text-sm truncate ${currentStep === step.id ? 'text-white' : 'text-slate-700'}`}>
+                                        <div className={`font-bold text-sm truncate ${currentStep === step.id ? 'text-white' : 'text-slate-200'}`}>
                                             {step.title || 'Untitled Step'}
                                         </div>
-                                        <div className={`text-[10px] truncate ${currentStep === step.id ? 'text-purple-100' : 'text-slate-400'}`}>
+                                        <div className={`text-[10px] truncate ${currentStep === step.id ? 'text-purple-100' : 'text-slate-500'}`}>
                                             {step.action || 'No action defined'}
                                         </div>
                                     </div>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); deleteStep(step.id); }}
-                                        className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all ${currentStep === step.id ? 'hover:bg-red-500 text-white' : 'hover:bg-red-50 text-red-500'
+                                        className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all ${currentStep === step.id ? 'hover:bg-red-500 text-white' : 'hover:bg-red-500/20 text-red-400'
                                             }`}
                                     >
                                         <Trash2 size={14} />
@@ -463,15 +528,15 @@ export default function Home() {
                         )}
                     </div>
 
-                    <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center">
+                    <div className="p-4 border-t border-white/5 bg-transparent">
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider text-center">
                             {steps.length > 0 ? 'Project saved to disk' : 'Ready to start'}
                         </div>
                     </div>
                 </aside>
 
                 {/* Editor Area */}
-                <main className="flex-1 bg-slate-50 p-10 overflow-auto">
+                <main className="flex-1 bg-transparent p-10 overflow-auto">
                     {currentStep ? (
                         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             {steps.find(s => s.id === currentStep) && (
@@ -489,13 +554,13 @@ export default function Home() {
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto">
-                            <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center text-slate-200 shadow-xl shadow-slate-200/50 mb-8 border border-slate-100">
+                            <div className="w-24 h-24 bg-slate-800/50 rounded-3xl flex items-center justify-center text-slate-500 shadow-xl shadow-black/20 mb-8 border border-white/5">
                                 <Wand2 size={48} />
                             </div>
-                            <h2 className="text-2xl font-black text-slate-800 mb-3">Welcome to Tutorial Builder</h2>
-                            <p className="text-slate-500 leading-relaxed mb-10">
+                            <h2 className="text-2xl font-black text-white mb-3">Welcome to Tutorial Builder</h2>
+                            <p className="text-slate-400 leading-relaxed mb-10">
                                 Select a step from the sidebar to edit its content, or use the
-                                <strong className="text-purple-600 mx-1">Magic Wand</strong> to launch the interactive capture browser.
+                                <strong className="text-purple-400 mx-1">Magic Wand</strong> to launch the interactive capture browser.
                             </p>
                             <button
                                 onClick={() => setShowWizard(true)}

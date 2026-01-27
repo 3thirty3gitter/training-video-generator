@@ -36,11 +36,11 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
 
             if (e.code === 'Space' || e.code === 'Enter') {
                 e.preventDefault()
-                
+
                 // Idle -> Start
                 if (state === 'idle' && url) {
                     startSession()
-                } 
+                }
                 // Review -> Add Step
                 else if (state === 'review') {
                     handleAddStep()
@@ -66,9 +66,9 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
             setRecordTime(0)
             timerRef.current = setInterval(() => {
                 setRecordTime(prev => {
-                    if (prev >= 19) {
+                    if (prev >= 29) {
                         handleStopRecording();
-                        return 20;
+                        return 30;
                     }
                     return prev + 1;
                 })
@@ -104,7 +104,7 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
 
     const [isCapturing, setIsCapturing] = useState(false)
 
-    const waitForCapture = async () => {
+    const waitForCapture = async (reset: boolean = false) => {
         if (isCapturing) return;
         setIsCapturing(true);
         setState('waiting-for-user')
@@ -118,7 +118,7 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
             const res = await fetch('/api/wizard/capture', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode }) // Tell backend if we want snapshot or video trigger
+                body: JSON.stringify({ mode, reset }) // Tell backend if we want snapshot or video trigger
             })
 
             if (!res.ok) {
@@ -189,7 +189,7 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
     const handleAddStep = () => {
         if (!currentResult) return
         onAddStep(currentResult)
-        waitForCapture()
+        waitForCapture(true)
     }
 
     const stopSession = async () => {
@@ -203,22 +203,22 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900/90 backdrop-blur-2xl rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10 ring-1 ring-white/5">
                 {/* Header */}
-                <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white text-slate-800">
+                <div className="p-5 border-b border-white/5 flex items-center justify-between bg-transparent text-white">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-purple-200">
+                        <div className="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-purple-900/20">
                             {state === 'recording' ? <Video className="animate-pulse" /> : <Play size={22} fill="currentColor" />}
                         </div>
                         <div>
-                            <h2 className="font-bold text-slate-800 text-lg">Interactive Wizard</h2>
-                            <p className="text-xs text-slate-500 font-medium tracking-wide uppercase">
+                            <h2 className="font-bold text-white text-lg">Interactive Wizard</h2>
+                            <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">
                                 {state === 'recording' ? `Recording Actions (${recordTime}s)` : 'Continuous Capture Active'}
                             </p>
                         </div>
                     </div>
-                    <button onClick={stopSession} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                    <button onClick={stopSession} className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white">
                         <X size={24} />
                     </button>
                 </div>
@@ -227,25 +227,25 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                 <div className="p-8 overflow-y-auto flex-1">
                     {state === 'idle' && (
                         <div className="text-center py-4">
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Ready to Start?</h3>
-                            <p className="text-slate-500 mb-8 max-w-sm mx-auto">
+                            <h3 className="text-xl font-bold text-white mb-2">Ready to Start?</h3>
+                            <p className="text-slate-400 mb-8 max-w-sm mx-auto">
                                 This will open a browser window where you can navigate and capture steps on the fly.
                             </p>
 
                             <div className="max-w-md mx-auto mb-8 space-y-4">
                                 <div>
-                                    <label className="block text-left text-sm font-bold text-slate-700 mb-2 px-1">Capture Mode</label>
-                                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+                                    <label className="block text-left text-sm font-bold text-slate-300 mb-2 px-1">Capture Mode</label>
+                                    <div className="flex bg-slate-950/50 p-1 rounded-xl gap-1 border border-white/5">
                                         <button
                                             onClick={() => setMode('snapshot')}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === 'snapshot' ? 'bg-white shadow text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === 'snapshot' ? 'bg-slate-800 shadow text-purple-400' : 'text-slate-500 hover:text-slate-300'}`}
                                         >
                                             <Camera size={18} />
                                             Snapshot
                                         </button>
                                         <button
                                             onClick={() => setMode('video')}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === 'video' ? 'bg-white shadow text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === 'video' ? 'bg-slate-800 shadow text-purple-400' : 'text-slate-500 hover:text-slate-300'}`}
                                         >
                                             <Video size={18} />
                                             Video Action
@@ -254,12 +254,12 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                                 </div>
 
                                 <div>
-                                    <label className="block text-left text-sm font-bold text-slate-700 mb-2 px-1">App Start URL</label>
+                                    <label className="block text-left text-sm font-bold text-slate-300 mb-2 px-1">App Start URL</label>
                                     <input
                                         type="url"
                                         value={url}
                                         onChange={e => setUrl(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none"
+                                        className="w-full px-4 py-3 bg-slate-950/50 border border-white/10 text-white rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none placeholder-slate-600"
                                         placeholder="https://example.com"
                                     />
                                 </div>
@@ -277,16 +277,16 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
 
                     {state === 'starting' && (
                         <div className="text-center py-16">
-                            <Loader2 size={56} className="mx-auto mb-6 text-purple-600 animate-spin" />
-                            <h3 className="text-xl font-bold text-slate-900">Firing up the browser...</h3>
+                            <Loader2 size={56} className="mx-auto mb-6 text-purple-500 animate-spin" />
+                            <h3 className="text-xl font-bold text-white">Firing up the browser...</h3>
                         </div>
                     )}
 
                     {state === 'analyzing' && (
                         <div className="text-center py-16">
-                            <Loader2 size={56} className="mx-auto mb-6 text-purple-600 animate-spin" />
-                            <h3 className="text-xl font-bold text-slate-900">Gemini is watching your clip...</h3>
-                            <p className="text-slate-500 text-sm mt-4">Generating intelligent narration...</p>
+                            <Loader2 size={56} className="mx-auto mb-6 text-purple-500 animate-spin" />
+                            <h3 className="text-xl font-bold text-white">Gemini is watching your clip...</h3>
+                            <p className="text-slate-400 text-sm mt-4">Generating intelligent narration...</p>
                         </div>
                     )}
 
@@ -295,10 +295,10 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                             <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse border-4 border-white shadow-xl ${mode === 'snapshot' ? 'bg-purple-50 text-purple-600 shadow-purple-50' : 'bg-red-50 text-red-600 shadow-red-50'}`}>
                                 {mode === 'snapshot' ? <Camera size={40} /> : <Video size={40} />}
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-3">
+                            <h3 className="text-xl font-bold text-white mb-3">
                                 {mode === 'snapshot' ? 'Click Capture Step' : 'Click Start Record'}
                             </h3>
-                            <p className="text-slate-500 max-w-xs mx-auto text-sm leading-relaxed mb-6">
+                            <p className="text-slate-400 max-w-xs mx-auto text-sm leading-relaxed mb-6">
                                 {mode === 'snapshot'
                                     ? 'Go to your app, navigate, and click the snapshot button.'
                                     : 'A video button has been added. Click it or press SPACE to start/stop action.'}
@@ -318,18 +318,18 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
 
                     {state === 'recording' && (
                         <div className="text-center py-10">
-                            <div className="w-24 h-24 bg-red-600 text-white rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse shadow-2xl shadow-red-200">
+                            <div className="w-24 h-24 bg-red-600 text-white rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse shadow-2xl shadow-red-500/30">
                                 <Square size={48} fill="currentColor" />
                             </div>
-                            <h3 className="text-2xl font-black text-slate-900 mb-1">Recording Action...</h3>
-                            <div className="text-4xl font-black text-red-600 font-mono mb-4">{20 - recordTime}s</div>
-                            <p className="text-slate-500 max-w-xs mx-auto text-sm font-medium">
+                            <h3 className="text-2xl font-black text-white mb-1">Recording Action...</h3>
+                            <div className="text-4xl font-black text-red-500 font-mono mb-4">{30 - recordTime}s</div>
+                            <p className="text-slate-400 max-w-xs mx-auto text-sm font-medium">
                                 Perform your action now. <br />
-                                Press <kbd className="bg-slate-100 px-1.5 py-0.5 rounded border shadow-sm">Space</kbd> or click the button to finish.
+                                Press <kbd className="bg-slate-800 px-1.5 py-0.5 rounded border border-white/10 shadow-sm text-slate-300">Space</kbd> or click the button to finish.
                             </p>
                             <button
                                 onClick={handleStopRecording}
-                                className="mt-8 px-6 py-2 bg-slate-900 text-white rounded-lg font-bold hover:bg-black transition-colors"
+                                className="mt-8 px-6 py-2 bg-white text-slate-900 rounded-lg font-bold hover:bg-slate-200 transition-colors"
                             >
                                 Finish Early
                             </button>
@@ -362,13 +362,13 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 gap-4 text-slate-800">
-                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Context</label>
-                                    <div className="font-bold text-slate-800">{currentResult.title}</div>
+                                <div className="p-4 bg-slate-950/50 rounded-xl border border-white/10">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Context</label>
+                                    <div className="font-bold text-white">{currentResult.title}</div>
                                 </div>
-                                <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
+                                <div className="p-4 bg-purple-900/20 rounded-xl border border-purple-500/20">
                                     <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest block mb-1">AI Video Narration</label>
-                                    <div className="text-slate-700 italic leading-relaxed font-medium text-sm">
+                                    <div className="text-slate-300 italic leading-relaxed font-medium text-sm">
                                         "{currentResult.narration}"
                                     </div>
                                 </div>
@@ -378,14 +378,14 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
 
                     {state === 'error' && (
                         <div className="text-center py-12">
-                            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div className="w-16 h-16 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
                                 <AlertCircle size={32} />
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Something went wrong</h3>
-                            <p className="text-red-500 mb-8 font-medium">{error}</p>
+                            <h3 className="text-xl font-bold text-white mb-2">Something went wrong</h3>
+                            <p className="text-red-400 mb-8 font-medium">{error}</p>
                             <button
                                 onClick={() => setState('idle')}
-                                className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors"
+                                className="px-6 py-3 bg-white text-slate-900 rounded-xl font-bold hover:bg-slate-200 transition-colors"
                             >
                                 Try Again
                             </button>
@@ -394,7 +394,7 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-6">
+                <div className="p-6 border-t border-white/5 bg-slate-950/30 flex flex-col gap-6">
                     {/* Log Terminal */}
                     {!['recording', 'analyzing'].includes(state) && (
                         <div className="bg-slate-900 rounded-xl p-4 h-40 overflow-y-auto font-mono text-[10px] text-purple-300 border border-slate-800 shadow-inner">
@@ -412,8 +412,8 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                         {state === 'review' ? (
                             <div className="flex gap-4 w-full">
                                 <button
-                                    onClick={waitForCapture}
-                                    className="flex-1 px-6 py-4 bg-white text-slate-600 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition-all"
+                                    onClick={() => waitForCapture(true)}
+                                    className="flex-1 px-6 py-4 bg-transparent text-slate-400 rounded-xl font-bold border border-white/10 hover:bg-white/5 transition-all"
                                 >
                                     Dismiss
                                 </button>
@@ -440,7 +440,7 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                                 <button
                                     onClick={stopSession}
                                     disabled={state === 'recording' || state === 'analyzing'}
-                                    className="text-sm font-bold text-slate-400 hover:text-slate-900 transition-colors disabled:opacity-30"
+                                    className="text-sm font-bold text-slate-500 hover:text-white transition-colors disabled:opacity-30"
                                 >
                                     {state === 'idle' ? 'Cancel' : 'Finish & Close Session'}
                                 </button>

@@ -29,13 +29,28 @@ export async function POST(request: NextRequest) {
         console.log(`[Export-Video] Using Voice: ${voiceTld}, Style: ${voiceStyle}, Speed: ${voiceSpeed}`);
 
         for (const step of steps) {
-            if (step.narration) {
-                console.log(`[Export-Video] Generating TTS for: ${step.title}`);
-                const audioPath = await generateNarrationAudio(step.id, step.narration, voiceTld, voiceStyle, voiceSpeed);
-                audioPaths.push(audioPath);
-            } else {
-                audioPaths.push(''); // No audio for this step
+            let audioPath = '';
+
+            // 1. Check for Custom Recording first
+            if (step.customAudioUrl) {
+                const relativePath = step.customAudioUrl.replace(/^\//, '');
+                const absolutePath = path.join(process.cwd(), 'public', relativePath);
+
+                if (fs.existsSync(absolutePath)) {
+                    console.log(`[Export-Video] Using Custom Audio for: ${step.title}`);
+                    audioPath = absolutePath;
+                } else {
+                    console.warn(`[Export-Video] Custom audio file missing: ${absolutePath}`);
+                }
             }
+
+            // 2. Fallback to TTS if no custom audio
+            if (!audioPath && step.narration) {
+                console.log(`[Export-Video] Generating TTS for: ${step.title}`);
+                audioPath = await generateNarrationAudio(step.id, step.narration, voiceTld, voiceStyle, voiceSpeed);
+            }
+
+            audioPaths.push(audioPath || '');
         }
 
         // 2. Stitch Video
@@ -43,7 +58,11 @@ export async function POST(request: NextRequest) {
         const finalVideoUrl = await stitchTutorialVideo(
             projectData.projectName || 'Training Tutorial',
             steps,
-            audioPaths
+            audioPaths,
+            projectData.includeCaptions || false,
+            projectData.transition || 'none',
+            projectData.backgroundMusic || 'none',
+            projectData.musicVolume || 0.1
         );
 
         console.log(`[Export-Video] Render complete: ${finalVideoUrl}`);

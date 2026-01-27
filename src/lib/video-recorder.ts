@@ -65,7 +65,8 @@ export async function startRecording(page: Page): Promise<string> {
 
 export async function stopRecording(): Promise<string> {
     if (!currentRecorder) {
-        throw new Error('No recording in progress');
+        console.warn('[Video] stopRecording called but no recording in progress. Ignoring.');
+        return currentVideoPath || ''; // Return last path if available, or empty
     }
 
     console.log('[Video] Stopping recording...');
@@ -75,7 +76,10 @@ export async function stopRecording(): Promise<string> {
     currentRecorder = null;
     currentVideoPath = null;
 
-    if (!savedPath) throw new Error('Video path lost during recording');
+    if (!savedPath) {
+        console.error('Video path lost during recording');
+        return '';
+    }
 
     console.log(`[Video] Recording saved to: ${savedPath}`);
     return savedPath;

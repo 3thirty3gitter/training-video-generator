@@ -4,5 +4,130 @@
   "voice": "au-natasha",
   "voiceStyle": "normal",
   "voiceSpeed": 1,
-  "steps": []
+  "includeCaptions": false,
+  "transition": "fade",
+  "backgroundMusic": "none",
+  "musicVolume": 0.35,
+  "steps": [
+    {
+      "id": "step-1769538536447",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769538432147.mp4",
+      "videoUrl": "/recordings/recording-1769538432147.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769538616654",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769538544581.mp4",
+      "videoUrl": "/recordings/recording-1769538544581.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769538664011",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769538623793.mp4",
+      "videoUrl": "/recordings/recording-1769538623793.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769539444765",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769539406312.mp4",
+      "videoUrl": "/recordings/recording-1769539406312.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769543832055",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769543765174.mp4",
+      "videoUrl": "/recordings/recording-1769543765174.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769543941130",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769543872236.mp4",
+      "videoUrl": "/recordings/recording-1769543872236.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769544005559",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769543948276.mp4",
+      "videoUrl": "/recordings/recording-1769543948276.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769544056374",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769544013720.mp4",
+      "videoUrl": "/recordings/recording-1769544013720.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769544274636",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769544224136.mp4",
+      "videoUrl": "/recordings/recording-1769544224136.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769544490081",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769544426577.mp4",
+      "videoUrl": "/recordings/recording-1769544426577.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769544627761",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769544496229.mp4",
+      "videoUrl": "/recordings/recording-1769544496229.mp4",
+      "waitTime": 1000
+    },
+    {
+      "id": "step-1769544743399",
+      "title": "Video Action",
+      "action": "",
+      "narration": "Video action recorded successfully.",
+      "type": "video",
+      "screenshot": "/recordings/recording-1769544682468.mp4",
+      "videoUrl": "/recordings/recording-1769544682468.mp4",
+      "waitTime": 1000
+    }
+  ]
 }

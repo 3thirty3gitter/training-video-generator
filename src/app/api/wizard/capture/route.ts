@@ -14,12 +14,48 @@ function debugLog(msg: string) {
     console.log(msg)
 }
 
-async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video') {
+async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video', reset: boolean = false) {
     const LOOP_DELAY = 1000;
     const MAX_WAIT_TIME = 600000;
     const startTime = Date.now();
 
-    debugLog(`Wizard: Waiting for ${mode} interaction...`);
+    debugLog(`Wizard: Waiting for ${mode} interaction... (Reset: ${reset})`);
+
+    // Handle Reset UI (Inject "Ready" message)
+    if (reset) {
+        try {
+            const pages = await browser.pages();
+            const activePage = pages[pages.length - 1]; // Assume last page is active
+            if (activePage) {
+                await activePage.evaluate(() => {
+                    // Reset Button State
+                    const btn = document.getElementById('gemini-wizard-btn');
+                    if (btn) {
+                        btn.style.visibility = 'visible';
+                        btn.innerHTML = '🎥 Start Record';
+                        btn.style.backgroundColor = '#ef4444';
+                        btn.style.animation = 'none';
+                        (window as any)._IS_RECORDING = false;
+                    }
+
+                    // Show "Ready" Toast
+                    const toast = document.createElement('div');
+                    toast.innerText = '✅ Ready to Record';
+                    Object.assign(toast.style, {
+                        position: 'fixed', bottom: '100px', right: '20px',
+                        backgroundColor: '#22c55e', color: 'white', padding: '10px 20px',
+                        borderRadius: '8px', zIndex: '9999999', transition: 'opacity 1s',
+                        fontFamily: 'system-ui, sans-serif', fontWeight: 'bold',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                    });
+                    document.body.appendChild(toast);
+                    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 1000) }, 2000);
+                });
+            }
+        } catch (e) {
+            debugLog(`Failed to reset UI: ${e}`);
+        }
+    }
 
     while (Date.now() - startTime < MAX_WAIT_TIME) {
         try {
@@ -221,14 +257,14 @@ async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video'
 
 export async function POST(request: NextRequest) {
     try {
-        const { mode = 'snapshot' } = await request.json();
+        const { mode = 'snapshot', reset = false } = await request.json();
         const browser = await getBrowserSession()
 
         if (!browser) {
             return NextResponse.json({ error: 'No active browser session' }, { status: 404 })
         }
 
-        const result: any = await waitForWizardInteraction(browser, mode)
+        const result: any = await waitForWizardInteraction(browser, mode, reset)
 
         if (result.action === 'started_recording') {
             return NextResponse.json({ success: true, action: 'started_recording', title: result.title });
