@@ -216,7 +216,10 @@ async function processSteps(
                 const musicMap: Record<string, string> = {
                     'upbeat': 'upbeat.mp3',
                     'lofi': 'lofi.mp3',
-                    'cinematic': 'cinematic.mp3'
+                    'cinematic': 'cinematic.mp3',
+                    'modern': 'modern.mp3',
+                    'piano': 'piano.mp3',
+                    'groove': 'groove.mp3'
                 };
 
                 const musicFilename = musicMap[backgroundMusic];

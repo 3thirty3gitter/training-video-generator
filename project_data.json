@@ -4,20 +4,21 @@
   "voice": "au-natasha",
   "voiceStyle": "normal",
   "voiceSpeed": 1,
-  "includeCaptions": false,
+  "includeCaptions": true,
   "transition": "fade",
-  "backgroundMusic": "none",
-  "musicVolume": 0.35,
+  "backgroundMusic": "cinematic",
+  "musicVolume": 0.4,
   "steps": [
     {
       "id": "step-1769538536447",
-      "title": "Video Action",
+      "title": "Welcome to PrintPilot",
       "action": "",
-      "narration": "Video action recorded successfully.",
+      "narration": "Welcome. This is PrintPilot, the command center I designed to bring unparalleled efficiency and control to your print shop operations. You'll notice the clean, intuitive interface on display – meticulously crafted to provide instant visibility without distraction. To truly experience this, simply click the 'Start Free 14-Day Trial' button. I made sure this process is entirely risk-free and streamlined: no credit card is required, setup takes just minutes, and you can cancel anytime. This is your immediate pathway to powerful, integrated print management.",
       "type": "video",
       "screenshot": "/recordings/recording-1769538432147.mp4",
       "videoUrl": "/recordings/recording-1769538432147.mp4",
-      "waitTime": 1000
+      "waitTime": 1000,
+      "context": "introducing, Printpilot.  strat your free trial , enter details, create account.  the video is 1:29 min long.  "
     },
     {
       "id": "step-1769538616654",

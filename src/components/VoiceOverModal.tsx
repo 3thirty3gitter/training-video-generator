@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { X, Mic, Square, Play, Save, RotateCcw, AlertCircle } from 'lucide-react'
+import { X, Mic, Square, Play, Save, RotateCcw, AlertCircle, Type } from 'lucide-react'
 import { TutorialStep } from '@/app/page'
 
 interface VoiceOverModalProps {
@@ -263,15 +263,26 @@ export default function VoiceOverModal({ isOpen, onClose, step, onSave }: VoiceO
                         </div>
                     </div>
 
-                    {/* Script Prompt */}
-                    {step.narration && (
-                        <div className="mt-6 p-4 bg-slate-950/50 rounded-xl border border-white/5 text-center">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Script</p>
-                            <p className="text-slate-300 font-medium leading-relaxed max-w-2xl mx-auto">
-                                "{step.narration}"
-                            </p>
+                    {/* Script Prompt (Teleprompter Style) */}
+                    <div className="mt-6">
+                        <div className="flex items-center gap-2 mb-2 justify-center">
+                            <Type size={14} className="text-purple-400" />
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Teleprompter</span>
                         </div>
-                    )}
+                        <div className="bg-black/40 rounded-xl border border-white/5 p-6 max-h-[150px] overflow-y-auto text-center relative group">
+                            {step.narration ? (
+                                <p className="text-2xl font-semibold text-white/90 leading-relaxed font-sans shadow-black drop-shadow-md">
+                                    {step.narration}
+                                </p>
+                            ) : (
+                                <p className="text-slate-500 italic text-sm">
+                                    No script generated. Use the "AI Generate Script" button in the editor first.
+                                </p>
+                            )}
+                            {/* Fade overlay for scroll suggestion */}
+                            <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-slate-900/10 to-transparent pointer-events-none" />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

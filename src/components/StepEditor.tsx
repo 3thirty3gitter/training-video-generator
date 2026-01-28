@@ -6,7 +6,7 @@ import VoiceOverModal from './VoiceOverModal'
 interface StepEditorProps {
     step: TutorialStep
     onUpdate: (updates: Partial<TutorialStep>) => void
-    onGenerateNarration: () => void
+    onGenerateNarration: (overrides?: Partial<TutorialStep>) => void
     isGenerating: boolean
 }
 
@@ -18,6 +18,7 @@ export default function StepEditor({
 }: StepEditorProps) {
     const [isVoiceOverOpen, setIsVoiceOverOpen] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
+    const videoRef = useRef<HTMLVideoElement>(null)
 
     // Helper to upload blob (reused from previous, but now called by modal)
     const uploadAudio = async (blob: Blob) => {
@@ -48,6 +49,41 @@ export default function StepEditor({
         if (confirm('Are you sure you want to delete this recording?')) {
             onUpdate({ customAudioUrl: undefined })
         }
+    }
+
+    const captureVideoFrame = (): string | undefined => {
+        if (!videoRef.current) return undefined
+        try {
+            const video = videoRef.current
+            const canvas = document.createElement('canvas')
+            canvas.width = video.videoWidth
+            canvas.height = video.videoHeight
+            const ctx = canvas.getContext('2d')
+            if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+                // Use JPEG with 0.7 quality to keep payload small
+                return canvas.toDataURL('image/jpeg', 0.7)
+            }
+        } catch (e) {
+            console.error('Failed to capture video frame', e)
+        }
+        return undefined
+    }
+
+    const handleGenerate = () => {
+        let overrides: Partial<TutorialStep> | undefined = undefined
+
+        // If it's a video step and we don't have a visual screenshot yet, try to capture one
+        if (step.type === 'video' && step.videoUrl && (!step.screenshot || !step.screenshot.startsWith('data:'))) {
+            const frame = captureVideoFrame()
+            if (frame) {
+                console.log('Captured video frame for AI context')
+                // We pass this TEMPORARILY to the AI generator, but don't necessarily save it to the step state
+                // to avoid bloating the JSON. Or we could save it. For now, let's pass it as override.
+                overrides = { screenshot: frame }
+            }
+        }
+        onGenerateNarration(overrides)
     }
 
     return (
@@ -97,6 +133,22 @@ export default function StepEditor({
                         className="w-full px-4 py-2 bg-slate-950/50 border border-white/10 text-white rounded-lg focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all"
                     />
                 </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                        AI Context / Keywords (Optional)
+                    </label>
+                    <input
+                        type="text"
+                        value={step.context || ''}
+                        onChange={(e) => onUpdate({ context: e.target.value })}
+                        placeholder="e.g., Q3 Sales Dashboard, Login Success Screen"
+                        className="w-full px-4 py-2 bg-slate-950/50 border border-white/10 text-white rounded-lg focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all placeholder-slate-600"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                        Keywords to help the AI understand what is shown in the video/screenshot.
+                    </p>
+                </div>
             </div>
 
             <div className="border-t border-white/10 pt-6">
@@ -105,7 +157,7 @@ export default function StepEditor({
                         Narration & Audio
                     </label>
                     <button
-                        onClick={onGenerateNarration}
+                        onClick={handleGenerate}
                         disabled={isGenerating || (!step.title?.trim() && !step.action?.trim())}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-300 bg-purple-900/30 border border-purple-500/20 rounded-lg hover:bg-purple-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         title={(!step.title?.trim() && !step.action?.trim()) ? "Add a title or action first" : "Generate narration with AI"}
@@ -187,6 +239,7 @@ export default function StepEditor({
                     <div className="relative rounded-lg overflow-hidden border border-white/10 bg-black aspect-video flex items-center justify-center group">
                         {step.type === 'video' && step.videoUrl ? (
                             <video
+                                ref={videoRef}
                                 src={step.videoUrl}
                                 controls
                                 muted

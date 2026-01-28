@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, Trash2, Download, Camera, Wand2, Save, RotateCcw, Monitor, Video } from 'lucide-react'
+import { useRef, useState, useEffect } from 'react'
+import { Plus, Trash2, Download, Camera, Wand2, Save, RotateCcw, Monitor, Video, Play, Upload, Globe } from 'lucide-react'
 import StepEditor from '@/components/StepEditor'
 import PreviewPanel from '@/components/PreviewPanel'
 import WizardOverlay from '@/components/WizardOverlay'
@@ -36,6 +36,10 @@ export default function Home() {
     const [includeCaptions, setIncludeCaptions] = useState(false)
     const [transition, setTransition] = useState('none')
     const [loaded, setLoaded] = useState(false)
+
+    // Music Preview State
+    const [isMusicPreviewing, setIsMusicPreviewing] = useState(false)
+    const musicAudioRef = useRef<HTMLAudioElement | null>(null)
 
     // Load from PROJECT_DATA.JSON on mount
     useEffect(() => {
@@ -150,16 +154,17 @@ export default function Home() {
         }
     }
 
-    const generateNarration = async (id: string) => {
+    const generateNarration = async (id: string, overrides?: Partial<TutorialStep>) => {
         const step = steps.find(s => s.id === id)
         if (!step) return
 
         setIsGenerating(true)
         try {
+            const mergedStep = { ...step, ...overrides }
             const res = await fetch('/api/generate-narration', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ step })
+                body: JSON.stringify({ step: mergedStep })
             })
             const data = await res.json()
             if (data.narration) {
@@ -217,7 +222,83 @@ export default function Home() {
             }
         } catch (e) {
             console.error('Preview error', e)
+            console.error('Preview error', e)
             setIsPlayingPreview(false)
+        }
+    }
+
+    const toggleMusicPreview = () => {
+        if (isMusicPreviewing) {
+            // Stop
+            if (musicAudioRef.current) {
+                musicAudioRef.current.pause()
+                musicAudioRef.current = null
+            }
+            setIsMusicPreviewing(false)
+        } else {
+            // Start
+            if (backgroundMusic === 'none') return
+
+            const musicMap: Record<string, string> = {
+                'upbeat': 'upbeat.mp3',
+                'lofi': 'lofi.mp3',
+                'cinematic': 'cinematic.mp3',
+                'modern': 'modern.mp3',
+                'piano': 'piano.mp3',
+                'groove': 'groove.mp3'
+            }
+
+            const filename = musicMap[backgroundMusic]
+            if (!filename) return
+
+            // Add timestamp to bust cache if we just uploaded
+            const audio = new Audio(`/music/${filename}?t=${Date.now()}`)
+            audio.volume = musicVolume
+            audio.loop = true
+            audio.play().catch(e => console.error("Playback failed", e))
+
+            musicAudioRef.current = audio
+            setIsMusicPreviewing(true)
+
+            // Cleanup on end (though loop is on, good practice)
+            audio.onended = () => {
+                setIsMusicPreviewing(false)
+                musicAudioRef.current = null
+            }
+        }
+    }
+
+    const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return
+        if (backgroundMusic === 'none') {
+            alert('Please select a track slot to replace first.')
+            return
+        }
+
+        const file = e.target.files[0]
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('trackName', backgroundMusic)
+
+        try {
+            const res = await fetch('/api/upload-music', {
+                method: 'POST',
+                body: formData
+            })
+            const data = await res.json()
+            if (data.success) {
+                alert('Track updated! Preview it to hear the new file.')
+                // Force stop audio if playing
+                if (isMusicPreviewing && musicAudioRef.current) {
+                    musicAudioRef.current.pause()
+                    setIsMusicPreviewing(false)
+                }
+            } else {
+                alert('Upload failed: ' + data.error)
+            }
+        } catch (err) {
+            console.error(err)
+            alert('Failed to upload music track')
         }
     }
 
@@ -453,17 +534,56 @@ export default function Home() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-[9px] font-bold text-slate-500 mb-1 ml-1 uppercase tracking-wider">Background Music</label>
-                                        <select
-                                            value={backgroundMusic}
-                                            onChange={(e) => setBackgroundMusic(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-white/10 text-white rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none mb-2"
-                                        >
-                                            <option value="none">None</option>
-                                            <option value="upbeat">Upbeat & Corporate</option>
-                                            <option value="lofi">Lofi Focus</option>
-                                            <option value="cinematic">Cinematic Ambient</option>
-                                        </select>
+                                        <div className="flex gap-2 mb-2">
+                                            <select
+                                                value={backgroundMusic}
+                                                onChange={(e) => setBackgroundMusic(e.target.value)}
+                                                className="flex-1 px-3 py-2 bg-slate-950/50 border border-white/10 text-white rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
+                                            >
+                                                <option value="none">None</option>
+                                                <option value="upbeat">Upbeat & Corporate</option>
+                                                <option value="modern">Modern Tech</option>
+                                                <option value="lofi">Lofi Focus</option>
+                                                <option value="groove">Funky Groove</option>
+                                                <option value="cinematic">Cinematic Ambient</option>
+                                                <option value="piano">Soft Piano</option>
+                                            </select>
+                                            <button
+                                                onClick={toggleMusicPreview}
+                                                disabled={backgroundMusic === 'none'}
+                                                className="px-3 bg-slate-800/50 border border-white/5 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-colors disabled:opacity-50"
+                                                title="Preview Music"
+                                            >
+                                                {isMusicPreviewing ? (
+                                                    <div className="w-3 h-3 bg-red-400 rounded-sm" />
+                                                ) : (
+                                                    <Play size={14} className="fill-current" />
+                                                )}
+                                            </button>
+                                            <div className="relative">
+                                                <input
+                                                    type="file"
+                                                    accept="audio/mp3,audio/wav"
+                                                    onChange={handleMusicUpload}
+                                                    disabled={backgroundMusic === 'none'}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                    title="Replace with your own file"
+                                                />
+                                                <button
+                                                    disabled={backgroundMusic === 'none'}
+                                                    className="h-full px-3 bg-slate-800/50 border border-white/5 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-colors disabled:opacity-50"
+                                                >
+                                                    <Upload size={14} />
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => window.open('https://www.chosic.com/free-music/', '_blank')}
+                                                className="px-3 bg-slate-800/50 border border-white/5 text-indigo-300 rounded-xl hover:bg-indigo-900/30 transition-colors"
+                                                title="Browse Royalty Free Music"
+                                            >
+                                                <Globe size={14} />
+                                            </button>
+                                        </div>
                                         {backgroundMusic !== 'none' && (
                                             <div className="flex items-center gap-2 px-1">
                                                 <span className="text-[9px] text-slate-500 font-bold">VOL</span>
@@ -473,7 +593,13 @@ export default function Home() {
                                                     max="0.5"
                                                     step="0.05"
                                                     value={musicVolume}
-                                                    onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+                                                    onChange={(e) => {
+                                                        const vol = parseFloat(e.target.value)
+                                                        setMusicVolume(vol)
+                                                        if (musicAudioRef.current) {
+                                                            musicAudioRef.current.volume = vol
+                                                        }
+                                                    }}
                                                     className="flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
                                                 />
                                             </div>
@@ -543,7 +669,7 @@ export default function Home() {
                                 <StepEditor
                                     step={steps.find(s => s.id === currentStep)!}
                                     onUpdate={(updates) => updateStep(currentStep, updates)}
-                                    onGenerateNarration={() => generateNarration(currentStep)}
+                                    onGenerateNarration={(overrides) => generateNarration(currentStep, overrides)}
                                     isGenerating={isGenerating}
                                 />
                             )}
@@ -571,17 +697,30 @@ export default function Home() {
                             </button>
                         </div>
                     )}
+
+                    {showWizard && (
+                        <WizardOverlay
+                            isOpen={showWizard}
+                            onClose={() => setShowWizard(false)}
+                            onAddStep={handleWizardAddStep}
+                            initialUrl={appUrl}
+                        />
+                    )}
                 </main>
             </div>
-
-            {showWizard && (
-                <WizardOverlay
-                    isOpen={showWizard}
-                    onClose={() => setShowWizard(false)}
-                    onAddStep={handleWizardAddStep}
-                    initialUrl={appUrl}
-                />
-            )}
         </main>
     )
+}
+
+export interface TutorialStep {
+    id: string
+    title: string
+    action: string
+    narration: string
+    screenshot?: string
+    videoUrl?: string
+    type: 'image' | 'video'
+    waitTime?: number
+    customAudioUrl?: string
+    context?: string // Keywords or context for AI
 }
