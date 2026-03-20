@@ -2,9 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 import { firestoreEnabled, loadProjectFromFirestore, deleteProjectFromFirestore } from '@/lib/firestore'
 
-const STORAGE_PATH = path.join(process.cwd(), 'project_data.json')
+const STORAGE_PATH = process.env.VERCEL
+    ? path.join(os.tmpdir(), 'project_data.json')
+    : path.join(process.cwd(), 'project_data.json')
 
 export async function GET() {
     try {

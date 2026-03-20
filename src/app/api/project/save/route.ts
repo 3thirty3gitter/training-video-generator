@@ -2,9 +2,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 import { firestoreEnabled, saveProjectToFirestore } from '@/lib/firestore'
 
-const STORAGE_PATH = path.join(process.cwd(), 'project_data.json')
+// Vercel's /var/task is read-only. Use /tmp for filesystem fallback.
+const STORAGE_PATH = process.env.VERCEL
+    ? path.join(os.tmpdir(), 'project_data.json')
+    : path.join(process.cwd(), 'project_data.json')
 
 export async function POST(request: NextRequest) {
     try {
@@ -20,7 +24,7 @@ export async function POST(request: NextRequest) {
             }
         }
         fs.writeFileSync(STORAGE_PATH, JSON.stringify(data, null, 2))
-        console.log(`[Storage] Saved to disk (${JSON.stringify(data).length} bytes)`)
+        console.log(`[Storage] Saved to disk at ${STORAGE_PATH} (${JSON.stringify(data).length} bytes)`)
         return NextResponse.json({ success: true })
     } catch (error) {
         console.error('[Storage] Save failed:', error)
