@@ -19,6 +19,7 @@ const nextConfig = {
         'google-tts-api',
         'kokoro-js',
         '@xenova/transformers',
+        'firebase-admin',
     ],
 }
 
