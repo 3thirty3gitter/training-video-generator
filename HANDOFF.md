@@ -3,8 +3,8 @@
 **Project:** SaaS Training Video Generator  
 **Repository:** https://github.com/3thirty3gitter/training-video-generator  
 **Created:** January 2026  
-**Last Updated:** March 20, 2026  
-**Status:** In Development — Deploying to Vercel
+**Last Updated:** March 21, 2026  
+**Status:** Deployed to Vercel — Firestore persistence integrated, debug verification pending
 
 ---
 
@@ -21,10 +21,11 @@
 9. [Video Pipeline](#video-pipeline)
 10. [Dependencies](#dependencies)
 11. [Deployment (Vercel)](#deployment-vercel)
-12. [Environment Variables](#environment-variables)
-13. [Current Project State](#current-project-state)
-14. [Known Issues](#known-issues)
-15. [Future Enhancements](#future-enhancements)
+12. [Firestore Persistence](#firestore-persistence)
+13. [Environment Variables](#environment-variables)
+14. [Current Project State](#current-project-state)
+15. [Known Issues](#known-issues)
+16. [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -54,7 +55,7 @@ This tool automates the creation of training tutorial videos for SaaS products. 
 - **Voice-Over Studio** — Record your own narration via microphone with a built-in teleprompter showing the script text, synced with video playback
 - **Video Rendering** — Full FFmpeg pipeline assembles individual step clips into a final MP4 with captions, fade transitions, and background music mixing
 - **Multiple Export Formats** — MP4 video, standalone HTML guide, downloadable Word document, embeddable widget
-- **Auto-Save** — Project state persists to disk (`project_data.json`) with debounced auto-save
+- **Auto-Save** — Project state persists to Firestore (cloud) when configured, or to disk locally (`project_data.json`)
 - **Live Preview** — Interactive tutorial viewer at `/view`, document preview in sidebar
 
 ---
@@ -73,6 +74,7 @@ This tool automates the creation of training tutorial videos for SaaS products. 
 | TTS | google-tts-api, Kokoro ONNX (Python), msedge-tts | Speech synthesis |
 | Video Processing | FFmpeg (via fluent-ffmpeg) | Audio conversion, DSP, video stitching |
 | Document Gen | docx 8.5 | Word document export |
+| Cloud Persistence | Firebase Admin SDK / Firestore | Project state (cloud) |
 | Icons | Lucide React | UI icons |
 | Runtime | Node.js 20+ | Server runtime |
 
@@ -196,18 +198,20 @@ Open **http://localhost:3000**
 
 ```
 training-video-generator/
-├── .gitignore
+├── .gitignore                              # Ignores Firebase keys, set-vercel-env.sh, project_data.json
 ├── .npmrc                                  # legacy-peer-deps=true (Vercel fix)
-├── .env.example                            # GEMINI_API_KEY template
-├── generate_kokoro.py                      # Python Kokoro ONNX TTS script
-├── next.config.js                          # Next.js config (10mb body limit)
+├── .env.example                            # All env vars documented (GEMINI + FIREBASE)
+├── Dockerfile                              # Multi-stage Docker build (node:20-slim + chromium + ffmpeg)
+├── generate_kokoro.py                      # output: standalone, serverExternalPackages list
 ├── package.json
 ├── postcss.config.js
 ├── tailwind.config.js
 ├── tsconfig.json
-├── project_data.json                       # Auto-saved project state (gitignored: no)
+├── project_data.json                       # Auto-saved project state (local fallback, NOT committed)
 ├── HANDOFF.md                              # This document
 │
+├── public/
+│   ├── favicon.ico                         # 16x16 app icon (fixes browser 404)
 ├── public/
 │   ├── embed-widget.js                     # Embeddable tutorial widget for external sites
 │   ├── audio/
@@ -264,6 +268,7 @@ training-video-generator/
 │   │
 │   └── lib/
 │       ├── browser-session.ts              # Singleton Puppeteer browser manager
+│       ├── firestore.ts                    # Firebase Admin SDK singleton — Firestore read/write
 │       ├── video-recorder.ts               # puppeteer-screen-recorder wrapper
 │       ├── video-analysis.ts               # Gemini video file analysis
 │       ├── tts-engine.ts                   # Multi-engine TTS + DSP processing
@@ -309,9 +314,15 @@ training-video-generator/
 
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/project/load` | GET | Read project_data.json from disk |
-| `/api/project/load` | POST | Clear/delete project_data.json |
-| `/api/project/save` | POST | Write project state to project_data.json |
+| `/api/project/load` | GET | Load project from Firestore (falls back to disk) |
+| `/api/project/load` | POST | Clear/delete current project |
+| `/api/project/save` | POST | Save project state to Firestore (falls back to `/tmp` on Vercel) |
+
+### Diagnostics
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/debug` | GET | Firestore diagnostic — returns env var status, key format check, live read/write test result |
 
 ### Export
 
@@ -376,6 +387,19 @@ Full-screen "Voice Over Studio" modal:
 ---
 
 ## Lib Modules Reference
+
+### `firestore.ts`
+
+Firebase Admin SDK singleton for cloud persistence:
+- **Init guard:** Calls `admin.getApp()` first; on `app/no-app` error, calls `initializeApp()`. Caches any init error in `_initError` so failed inits don't retry on every request.
+- **Private key handling:** Replaces literal `\n` strings (how Vercel stores multiline env vars) with real newlines before credential construction.
+- **`firestoreEnabled()`** — Returns `true` if env vars are set and init succeeded. Call this before any read/write.
+- **`getFirestore()`** — Returns the `Firestore` instance, or `null` if not configured.
+- **`loadProjectFromFirestore()`** — Reads `projects/current` document. Returns parsed object or `null` if not found.
+- **`saveProjectToFirestore(data)`** — Merges data into `projects/current` with a `_updatedAt` timestamp.
+- **`deleteProjectFromFirestore()`** — Deletes `projects/current`.
+
+**Collection structure:** `projects` → document `current` → full project JSON blob.
 
 ### `browser-session.ts`
 
@@ -558,72 +582,150 @@ These packages are in `package.json` but not imported in the codebase:
 
 ## Deployment (Vercel)
 
-### Current Status
+### Live URLs
 
-Deploying to Vercel from GitHub. The `.npmrc` file with `legacy-peer-deps=true` resolves the `puppeteer-screen-recorder` peer dependency conflict during `npm install`.
+| URL | Notes |
+|-----|-------|
+| `https://travigen.vercel.app` | Primary alias (short link) |
+| `https://training-video-generator-omega.vercel.app` | Vercel-generated domain |
 
-### Important Vercel Limitations
+- **Vercel project name:** `training-video-generator`
+- **Vercel team/org:** `trent-timmermans-projects`
+- **GitHub repo:** `3thirty3gitter/training-video-generator`
+- **Auto-deploy:** Every push to `main` triggers a new Vercel production deploy.
+- **Last deployed commit:** `eb2a530` (fix: use /tmp fallback on Vercel + add /api/debug diagnostic)
 
-**Puppeteer will NOT work** in Vercel's serverless environment:
-- Serverless functions have 50MB size limit (Chromium is ~280MB)
-- No persistent filesystem (browser sessions, recordings can't be stored)
-- 10-second default timeout (30s max on free tier) — too short for captures
-- No visible/headed browser mode
+### Build Notes
 
-**What WILL work on Vercel:**
-- The frontend UI (page.tsx, components)
-- The `/view` page
-- `/api/project/load` and `/api/project/save` (if using external storage)
-- `/api/generate-narration` (Gemini API call, no Puppeteer)
-- `/api/export` (DOCX generation from existing data)
-- `/api/export/web` (HTML template generation)
+- `next.config.js` uses `output: 'standalone'` (Docker-compatible, harmless on Vercel) and `serverExternalPackages` to exclude large native modules from the edge bundle.
+- `.npmrc` sets `legacy-peer-deps=true` to resolve the `puppeteer-screen-recorder` peer conflict.
+- Build time is ~12 minutes because Puppeteer downloads Chromium (~150 MB) during `npm install`. This is a known slow step; no fix applied.
 
-**What WON'T work on Vercel (serverless):**
-- `/api/wizard/*` (needs persistent Puppeteer browser)
-- `/api/capture` (needs Puppeteer)
-- `/api/analyze-page` (needs Puppeteer)
-- `/api/export/video` (needs FFmpeg + filesystem)
-- `/api/voice-preview` (needs FFmpeg for TTS processing)
-- Screen recording, video stitching
+### Vercel Limitations
 
-### Recommended Deployment Strategy
+**Puppeteer/FFmpeg/screen recording will NOT work** in Vercel's serverless environment:
+- Serverless functions have a 50 MB deployment limit — Chromium alone is ~280 MB.
+- No persistent filesystem — browser sessions and video recordings require disk.
+- Default 10-second timeout (30s max on free tier) — too short for browser automation.
+- No headed/visible browser mode.
 
-**Option A: Vercel for frontend + external API for heavy work**
-- Deploy to Vercel for the UI and lightweight APIs
-- Run Puppeteer/FFmpeg workloads on a VPS (Railway, Render, or dedicated server)
+**What WORKS on Vercel:**
 
-**Option B: Railway / Render (full stack)**
-- Better for this app since it needs Puppeteer + FFmpeg
-- Both support Docker and persistent processes
-- Set build: `npm run build`, start: `npm start`
+| Feature | Works? |
+|---------|--------|
+| Main UI (`page.tsx`, components) | ✅ |
+| `/view` tutorial viewer | ✅ |
+| `/api/project/load` + `/api/project/save` (Firestore) | ✅ |
+| `/api/generate-narration` (Gemini API call) | ✅ |
+| `/api/export` (DOCX from existing data) | ✅ |
+| `/api/export/web` (HTML template generation) | ✅ |
+| `/api/debug` (Firestore diagnostic) | ✅ |
+| `/api/wizard/*` (needs persistent Puppeteer) | ❌ |
+| `/api/capture` (needs Puppeteer) | ❌ |
+| `/api/analyze-page` (needs Puppeteer) | ❌ |
+| `/api/export/video` (needs FFmpeg + filesystem) | ❌ |
+| `/api/voice-preview` (needs FFmpeg) | ❌ |
 
-**Option C: Docker on VPS**
+### Recommended Full-Stack Deployment
 
-```dockerfile
-FROM node:20-slim
+For the complete feature set (Puppeteer + FFmpeg), deploy to a platform that supports persistent containers:
 
-RUN apt-get update && apt-get install -y \
-    chromium \
-    ffmpeg \
-    python3 python3-pip \
-    fonts-liberation \
-    libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
-    libgbm1 libasound2 \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+- **Railway** or **Render** — use the included `Dockerfile`, set build: `docker build`, start: auto via `CMD`
+- **VPS / DigitalOcean / Hetzner** — clone repo, `docker build -t training-video-gen . && docker run -p 3000:3000 training-video-gen`
 
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+The `Dockerfile` at the repo root installs Chromium, FFmpeg, and Python 3 on `node:20-slim`.
 
-WORKDIR /app
-COPY package*.json .npmrc ./
-RUN npm ci
-COPY . .
-RUN npm run build
+---
 
-EXPOSE 3000
-CMD ["npm", "start"]
+## Firestore Persistence
+
+### Overview
+
+Project state is persisted to **Google Cloud Firestore** when the Firebase environment variables are configured. On Vercel, the filesystem is read-only (`/var/task` is immutable), so Firestore is the only durable storage option.
+
+### Storage Fallback Chain
+
 ```
+1. Firestore (if FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY are set and init succeeds)
+   ↓ on error
+2. /tmp/project_data.json (on Vercel — os.tmpdir() == /tmp)
+   ↓ (or when running locally)
+3. project_data.json in project root (process.cwd())
+```
+
+### Firebase Project Details
+
+| Setting | Value |
+|---------|-------|
+| Firebase project ID | `training-video-gen` |
+| Firestore region | `nam5` (us-central, default) |
+| Database mode | Native |
+| Collection | `projects` |
+| Document | `current` |
+| Service account email | `firebase-adminsdk-fbsvc@training-video-gen.iam.gserviceaccount.com` |
+
+### Firestore Security Rules
+
+The current rules (Firebase Console → Firestore → Rules) should be:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false; // Server-side only via Admin SDK
+    }
+  }
+}
+```
+
+The Admin SDK bypasses these rules — they only apply to client-side SDKs. Set them to `false` for all client access (we only use server-side Admin SDK).
+
+### Environment Variables for Firestore
+
+All four must be set in Vercel Dashboard → Project → Settings → Environment Variables:
+
+```
+FIREBASE_PROJECT_ID=training-video-gen
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@training-video-gen.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"
+```
+
+**Private key format:** Vercel stores multiline values with literal `\n`. `firestore.ts` handles both literal `\n` and real newlines.
+
+### Diagnosing Firestore Issues
+
+1. Deploy the latest code to Vercel.
+2. Visit `https://travigen.vercel.app/api/debug` in your browser.
+3. The response JSON shows:
+   - `FIREBASE_PROJECT_ID` — whether the env var is set
+   - `FIREBASE_CLIENT_EMAIL` — whether the env var is set
+   - `FIREBASE_PRIVATE_KEY` — character count and first 27 chars (safe preview)
+   - `privateKeyHasLiteralNewlines` — `true` means key has `\n` as text (Vercel stores them this way, handled automatically)
+   - `privateKeyHasRealNewlines` — `true` means key has actual line breaks
+   - `adminAppsCount` — number of initialized Firebase admin apps (should be 1)
+   - `firestoreResult` — either `"OK — read/write succeeded"` or a full error string
+
+4. If `firestoreResult` says `ERROR`, the full error message tells you whether it's a credential problem, network issue, or missing database.
+
+### If Firestore Is Not Working
+
+- Verify all 4 env vars are set in Vercel (not just in `.env.local`).
+- Confirm the Firestore database exists: Firebase Console → Firestore → see the data tab.
+- Confirm the database is in **Native mode** (not Datastore mode).
+- The service account key may have been rotated. Get a fresh key from Firebase Console → Project Settings → Service Accounts → Generate new private key, and re-run the setup.
+
+### Re-running the Vercel Setup Script
+
+If env vars need to be re-pushed:
+
+```bash
+# In the Codespace, with .env.local correct:
+bash set-vercel-env.sh
+npx vercel --prod
+```
+
+`set-vercel-env.sh` is gitignored. If it's gone, manually set each variable in Vercel Dashboard.
 
 ---
 
@@ -632,12 +734,28 @@ CMD ["npm", "start"]
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `GEMINI_API_KEY` | Yes (for AI features) | Google Gemini API key. Get free at https://aistudio.google.com/app/apikey |
+| `FIREBASE_PROJECT_ID` | Yes (for cloud persistence) | Firebase project ID — `training-video-gen` |
+| `FIREBASE_CLIENT_EMAIL` | Yes (for cloud persistence) | Service account email from Firebase |
+| `FIREBASE_PRIVATE_KEY` | Yes (for cloud persistence) | Full PEM private key from Firebase service account JSON |
 
-No other environment variables are currently required. The app functions without the API key but falls back to error messages instead of AI narration.
+The app runs without Firebase env vars but project state will only persist to `/tmp` (ephemeral on Vercel — lost on redeploy) or local disk.
 
 ---
 
 ## Current Project State
+
+### Deployment Status
+
+| Item | Status |
+|------|--------|
+| Vercel deployment | ✅ Live at `travigen.vercel.app` |
+| GitHub auto-deploy | ✅ Active on `main` branch |
+| Firestore database | ✅ Created (Native mode, `training-video-gen`) |
+| Firestore env vars on Vercel | ✅ All 4 set |
+| Firestore connection verified | ⏳ Visit `/api/debug` to confirm |
+| Gemini API key | ⏳ User to confirm it was added to Vercel |
+| EROFS crash | ✅ Fixed (using `/tmp` fallback) |
+| Favicon 404 | ✅ Fixed (`public/favicon.ico` added) |
 
 ### Active Project: PrintPilot User Guide
 
@@ -651,31 +769,54 @@ No other environment variables are currently required. The app functions without
 | 1 | Welcome to PrintPilot | Yes | Yes (full AI narration) |
 | 2-12 | Video Action | Yes | Generic fallback only |
 
-Steps 2-12 have video recordings but their titles and narration are generic defaults ("Video Action" / "Video action recorded successfully.") — the Gemini video analysis either wasn't fully applied or failed silently for these steps.
+Steps 2-12 have video recordings but their titles and narration are generic defaults ("Video Action" / "Video action recorded successfully.") — Gemini video analysis either wasn't applied or failed silently for these steps.
+
+### Git Commit History (This Session)
+
+| Commit | Message |
+|--------|---------|
+| `eb2a530` | fix: use /tmp fallback on Vercel + add /api/debug diagnostic |
+| `2efabe6` | fix: Firestore error handling + favicon 404 |
+| `acecc84` | chore: gitignore Firebase service account keys and env push script |
+| `00ea6e4` | feat: add Firestore persistence for cloud deployments |
+| `c2b4c30` | fix: TypeScript build error + add Docker production config |
+| `d1a11a6` | Rewrite HANDOFF.md with comprehensive project documentation |
 
 ---
 
 ## Known Issues
 
-1. **Duplicate `TutorialStep` interface** — Defined twice in `page.tsx` (top and bottom). The bottom export includes an extra `context?: string` field. Can cause type confusion.
+### Production (Vercel)
 
-2. **`setIncludeCaptions` called twice** on load in `page.tsx` (lines 59-60). Harmless but redundant.
+1. **Firestore connection unverified** — `/api/debug` was added in commit `eb2a530`. Visit `https://travigen.vercel.app/api/debug` after the latest deploy completes to confirm `firestoreResult: "OK"`. Until verified, project saves fall back to `/tmp` which is ephemeral (wiped on redeploy).
 
-3. **Unused state variables** — `isInteractive` and `loginWaitTime` are declared in `page.tsx` but never rendered in the UI.
+2. **`/tmp` storage is ephemeral** — Even with the EROFS fix, data written to `/tmp` on Vercel is lost on each new deploy/cold start. This is the Firestore fallback only. Proper persistence requires Firestore to be working.
 
-4. **Google TTS text truncation** — `tts-engine.ts` silently truncates narration text to 199 characters (`safeText = text.substring(0, 199)`). Long narrations will be cut off.
+3. **Slow Vercel builds (~12 min)** — Puppeteer downloads Chromium on every build. To speed up, add `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` as a Vercel env var (safe since Puppeteer won't work on Vercel anyway). The Chromium binary is only needed for Docker/local runs.
 
-5. **No macOS FFmpeg support** — Hardcoded paths only handle `win32-x64` and `linux-x64`.
+4. **Wizard/capture/video features broken on Vercel** — All Puppeteer-dependent routes (`/api/wizard/*`, `/api/capture`, `/api/analyze-page`, `/api/export/video`, `/api/voice-preview`) will fail with errors on Vercel serverless. Use locally or via Docker for these features.
 
-6. **No authentication** — All API routes are open. Designed for local/single-user use only.
+### Codebase
 
-7. **Puppeteer version deprecated** — v21.11.0 is deprecated. Upgrade to 24.15+ recommended.
+5. **Duplicate `TutorialStep` interface** — Defined twice in `page.tsx` (top and bottom). The bottom export includes an extra `context?: string` field. Can cause type confusion.
 
-8. **`puppeteer-screen-recorder` peer conflict** — Wants puppeteer@19, we have 21. Resolved via `.npmrc` legacy-peer-deps but may cause runtime issues.
+6. **`setIncludeCaptions` called twice** on load in `page.tsx` (lines 59-60). Harmless but redundant.
 
-9. **Unused npm packages** — `sharp`, `@xenova/transformers`, `wavefile`, `kokoro-js`, `html-to-docx` are installed but never imported. Adds ~100MB+ to `node_modules`.
+7. **Unused state variables** — `isInteractive` and `loginWaitTime` are declared in `page.tsx` but never rendered in the UI.
 
-10. **`exportToVideo` button handler** — In `page.tsx`, the "Export Guide" header button just calls `alert()` — it's not wired to the actual render pipeline (the sidebar Video button is).
+8. **Google TTS text truncation** — `tts-engine.ts` silently truncates narration text to 199 characters (`safeText = text.substring(0, 199)`). Long narrations will be cut off.
+
+9. **No macOS FFmpeg support** — Hardcoded paths only handle `win32-x64` and `linux-x64`.
+
+10. **No authentication** — All API routes are open. Designed for local/single-user use only.
+
+11. **Puppeteer version deprecated** — v21.11.0 is deprecated. Upgrade to 24.15+ recommended.
+
+12. **`puppeteer-screen-recorder` peer conflict** — Wants puppeteer@19, we have 21. Resolved via `.npmrc` legacy-peer-deps but may cause runtime issues.
+
+13. **Unused npm packages** — `sharp`, `@xenova/transformers`, `wavefile`, `kokoro-js`, `html-to-docx` are installed but never imported. Adds ~100MB+ to `node_modules`.
+
+14. **`exportToVideo` button handler** — In `page.tsx`, the "Export Guide" header button just calls `alert()` — it's not wired to the actual render pipeline (the sidebar Video button is).
 
 ---
 
@@ -683,6 +824,8 @@ Steps 2-12 have video recordings but their titles and narration are generic defa
 
 ### High Priority
 
+- **Verify Firestore is working** — Visit `/api/debug` on the live deploy, confirm `"OK"` result
+- **Add `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` to Vercel env vars** — Speeds up builds by ~8 minutes
 - **Fix step 2-12 narrations** — Re-run Gemini analysis on existing video recordings, or manually add meaningful titles/narration
 - **Remove unused dependencies** — `sharp`, `@xenova/transformers`, `wavefile`, `kokoro-js`, `html-to-docx`
 - **Wire up "Export Guide" button** — Connect header button to actual DOCX export or render
@@ -700,11 +843,10 @@ Steps 2-12 have video recordings but their titles and narration are generic defa
 
 - **Chrome extension for capture** — Record user interactions directly without Puppeteer
 - **Authentication & multi-user** — NextAuth.js + Prisma + PostgreSQL
-- **Cloud storage** — Replace filesystem persistence with S3/Cloud Storage
 - **Serverless-compatible capture** — Puppeteer Core + Chrome AWS Lambda for Vercel
 
 ---
 
-**Last Updated:** March 20, 2026  
-**Version:** 1.1.0  
+**Last Updated:** March 21, 2026  
+**Version:** 1.2.0  
 **Repository:** https://github.com/3thirty3gitter/training-video-generator
