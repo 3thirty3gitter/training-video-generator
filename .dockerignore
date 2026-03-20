@@ -1,0 +1,58 @@
+# Dependencies
+node_modules
+
+# Build output
+.next
+out
+dist
+build
+
+# Environment
+.env
+.env.local
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Dev / debug
+*.log
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Puppeteer session / user data
+.puppeteer_data
+.puppeteer_session
+
+# AI model files
+*.onnx
+*.bin
+voices.json
+
+# Temp / test files
+temp_stitch/
+public/exports/videos/*.mp4
+public/recordings/
+test_input.txt
+test-*.mp3
+test-*.wav
+test-tts.js
+test-ffmpeg.js
+*.debug.log
+wizard_debug.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Docs (not needed in image)
+*.md
