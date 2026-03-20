@@ -2,8 +2,8 @@
  * Firestore client — singleton using Firebase Admin SDK.
  *
  * Activated when FIREBASE_PROJECT_ID env var is set.
- * Falls back gracefully (returns null) when not configured,
- * so local dev continues to use the filesystem.
+ * Falls back gracefully (returns null) when not configured or on init error,
+ * so local dev and fallback continues to use the filesystem.
  */
 
 import * as admin from 'firebase-admin'
@@ -11,28 +11,44 @@ import * as admin from 'firebase-admin'
 const COLLECTION = 'projects'
 const DEFAULT_DOC = 'current'
 
+let _initError: string | null = null
+
 function getApp(): admin.app.App | null {
     const projectId = process.env.FIREBASE_PROJECT_ID
     if (!projectId) return null
+
+    // If a previous init attempt failed, don't retry — surface the error
+    if (_initError) {
+        console.error('[Firestore] Skipping init due to previous error:', _initError)
+        return null
+    }
 
     // Reuse existing app if already initialised
     if (admin.apps.length > 0) {
         return admin.app()
     }
 
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    try {
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+        // Handle both literal \n (from env var) and already-expanded newlines
+        const rawKey = process.env.FIREBASE_PRIVATE_KEY ?? ''
+        const privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey
 
-    if (clientEmail && privateKey) {
-        // Service account credentials supplied via env vars
-        return admin.initializeApp({
-            credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-        })
+        if (clientEmail && privateKey) {
+            console.log('[Firestore] Initialising with service account:', clientEmail)
+            return admin.initializeApp({
+                credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+            })
+        }
+
+        // No explicit credentials — use Application Default Credentials
+        console.log('[Firestore] Initialising with Application Default Credentials')
+        return admin.initializeApp({ projectId })
+    } catch (err) {
+        _initError = String(err)
+        console.error('[Firestore] Initialisation failed:', err)
+        return null
     }
-
-    // No explicit credentials — use Application Default Credentials
-    // (works on Cloud Run, GKE, and locally with `gcloud auth application-default login`)
-    return admin.initializeApp({ projectId })
 }
 
 export function getFirestore(): admin.firestore.Firestore | null {

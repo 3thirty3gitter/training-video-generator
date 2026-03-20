@@ -9,8 +9,14 @@ const STORAGE_PATH = path.join(process.cwd(), 'project_data.json')
 export async function GET() {
     try {
         if (firestoreEnabled()) {
-            const data = await loadProjectFromFirestore()
-            return NextResponse.json(data ?? { projectName: '', appUrl: '', steps: [] })
+            try {
+                const data = await loadProjectFromFirestore()
+                console.log('[Storage] Loaded from Firestore')
+                return NextResponse.json(data ?? { projectName: '', appUrl: '', steps: [] })
+            } catch (firestoreErr) {
+                console.error('[Storage] Firestore load failed, falling back to disk:', firestoreErr)
+                // Fall through to filesystem fallback
+            }
         }
         if (!fs.existsSync(STORAGE_PATH)) {
             return NextResponse.json({ projectName: '', appUrl: '', steps: [] })
@@ -19,7 +25,7 @@ export async function GET() {
         return NextResponse.json(JSON.parse(data))
     } catch (error) {
         console.error('[Storage] Load failed:', error)
-        return NextResponse.json({ error: 'Failed to load project' }, { status: 500 })
+        return NextResponse.json({ projectName: '', appUrl: '', steps: [] })
     }
 }
 
