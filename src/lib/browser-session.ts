@@ -1,10 +1,13 @@
 
 import puppeteer, { Browser } from 'puppeteer'
+import puppeteerCore from 'puppeteer-core'
 import fs from 'fs'
 import path from 'path'
 
 const SESSION_FILE = path.resolve('./.puppeteer_session')
 const USER_DATA_DIR = path.resolve('./.puppeteer_data')
+
+const IS_VERCEL = !!process.env.VERCEL
 
 interface BrowserSession {
     browserWSEndpoint: string
@@ -45,19 +48,37 @@ export async function createBrowserSession(): Promise<Browser> {
     }
 
     console.log('🚀 Launching new browser session...')
-    const browser = await puppeteer.launch({
-        headless: false, // Always visible for interactive mode
-        defaultViewport: null,
-        userDataDir: USER_DATA_DIR,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu',
-            '--start-maximized',
-        ],
-    })
+
+    let browser: Browser
+
+    if (IS_VERCEL) {
+        // Serverless environment: use @sparticuz/chromium
+        const chromium = (await import('@sparticuz/chromium')).default
+        chromium.setHeadlessMode = true
+        chromium.setGraphicsMode = false
+        const executablePath = await chromium.executablePath()
+        browser = await puppeteerCore.launch({
+            executablePath,
+            headless: true,
+            defaultViewport: chromium.defaultViewport,
+            args: chromium.args,
+        }) as unknown as Browser
+    } else {
+        // Local dev: use bundled puppeteer Chrome
+        browser = await puppeteer.launch({
+            headless: false, // Visible for interactive local use
+            defaultViewport: null,
+            userDataDir: USER_DATA_DIR,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--disable-gpu',
+                '--start-maximized',
+            ],
+        })
+    }
 
     const session: BrowserSession = {
         browserWSEndpoint: browser.wsEndpoint()
