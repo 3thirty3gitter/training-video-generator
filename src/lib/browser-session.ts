@@ -90,9 +90,15 @@ export async function createBrowserSession(): Promise<Browser> {
         }) as unknown as Browser
     } else {
         // Local dev: use bundled puppeteer Chrome
+        // In Codespaces/CI there's no display — detect and use headless automatically
+        const hasDisplay = !!process.env.DISPLAY
+        const headless = !hasDisplay
+        if (!hasDisplay) {
+            console.log('⚠️  No DISPLAY detected — launching headless (Codespace/CI mode)')
+        }
         browser = await puppeteer.launch({
-            headless: false, // Visible for interactive local use
-            defaultViewport: null,
+            headless,
+            defaultViewport: headless ? { width: 1920, height: 1080 } : null,
             userDataDir: USER_DATA_DIR,
             args: [
                 '--no-sandbox',
