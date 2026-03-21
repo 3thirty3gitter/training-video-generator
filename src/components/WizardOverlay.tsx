@@ -11,9 +11,17 @@ interface WizardOverlayProps {
 
 type WizardState = 'idle' | 'starting' | 'waiting-for-user' | 'recording' | 'analyzing' | 'review' | 'error'
 
-// Wizard requires a visible browser — only works when running locally
-const isLocalDev = typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+// Wizard requires a visible browser — only works when running locally or in a dev environment
+const isLocalDev = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.app.github.dev') ||   // GitHub Codespaces port forwarding
+    window.location.hostname.endsWith('.githubpreview.dev') || // GitHub Codespaces (older)
+    window.location.hostname.endsWith('.preview.app.github.dev') ||
+    window.location.hostname.endsWith('.gitpod.io') ||        // Gitpod
+    window.location.hostname.endsWith('.csb.app') ||          // CodeSandbox
+    process.env.NODE_ENV === 'development'
+)
 type CaptureMode = 'snapshot' | 'video'
 
 export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }: WizardOverlayProps) {
