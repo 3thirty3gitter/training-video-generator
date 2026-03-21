@@ -1,6 +1,6 @@
 
-import { useState, useRef, useEffect } from 'react'
-import { X, Camera, Plus, Loader2, Play, AlertCircle, Video, Square, MonitorOff } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { X, Camera, Plus, Loader2, Play, AlertCircle, Video, Square, MonitorOff, RefreshCw, ArrowRight, Globe } from 'lucide-react'
 
 interface WizardOverlayProps {
     isOpen: boolean
@@ -11,17 +11,24 @@ interface WizardOverlayProps {
 
 type WizardState = 'idle' | 'starting' | 'waiting-for-user' | 'recording' | 'analyzing' | 'review' | 'error'
 
-// Wizard requires a visible browser — only works when running locally or in a dev environment
+// Wizard is allowed in any local/dev environment
 const isLocalDev = typeof window !== 'undefined' && (
     window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.endsWith('.app.github.dev') ||   // GitHub Codespaces port forwarding
-    window.location.hostname.endsWith('.githubpreview.dev') || // GitHub Codespaces (older)
+    window.location.hostname.endsWith('.app.github.dev') ||
+    window.location.hostname.endsWith('.githubpreview.dev') ||
     window.location.hostname.endsWith('.preview.app.github.dev') ||
-    window.location.hostname.endsWith('.gitpod.io') ||        // Gitpod
-    window.location.hostname.endsWith('.csb.app') ||          // CodeSandbox
+    window.location.hostname.endsWith('.gitpod.io') ||
+    window.location.hostname.endsWith('.csb.app') ||
     process.env.NODE_ENV === 'development'
 )
+
+// Remote browser mode: Codespace/Gitpod — no visible Chrome window, use embedded preview panel
+const isRemoteBrowser = typeof window !== 'undefined' && isLocalDev && (
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+)
+
 type CaptureMode = 'snapshot' | 'video'
 
 export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }: WizardOverlayProps) {
@@ -33,6 +40,64 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
     const [logs, setLogs] = useState<string[]>([])
     const [recordTime, setRecordTime] = useState(0)
     const timerRef = useRef<any>(null)
+
+    // Remote browser state (Codespace mode)
+    const [remoteSrc, setRemoteSrc] = useState<string | null>(null)
+    const [remoteUrl, setRemoteUrl] = useState(initialUrl)
+    const [remoteNavInput, setRemoteNavInput] = useState(initialUrl)
+    const [isRefreshing, setIsRefreshing] = useState(false)
+
+    const refreshScreenshot = useCallback(async () => {
+        setIsRefreshing(true)
+        try {
+            const res = await fetch('/api/wizard/screenshot')
+            if (res.ok) {
+                const data = await res.json()
+                setRemoteSrc(data.screenshot)
+                setRemoteUrl(data.url)
+                setRemoteNavInput(data.url)
+            }
+        } catch { } finally {
+            setIsRefreshing(false)
+        }
+    }, [])
+
+    const remoteNavigate = async (dest: string) => {
+        setIsRefreshing(true)
+        setRemoteSrc(null)
+        try {
+            const res = await fetch('/api/wizard/navigate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: dest })
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setRemoteSrc(data.screenshot)
+                setRemoteUrl(data.url)
+                setRemoteNavInput(data.url)
+            }
+        } catch { } finally {
+            setIsRefreshing(false)
+        }
+    }
+
+    const remoteSnap = async () => {
+        setState('analyzing')
+        addLog('Capturing current browser state...')
+        try {
+            const res = await fetch('/api/wizard/snap', { method: 'POST' })
+            if (!res.ok) throw new Error('Snap failed')
+            const data = await res.json()
+            addLog(`Captured: ${data.title}`)
+            setCurrentResult(data)
+            setState('review')
+        } catch (err) {
+            addLog(`Error: ${err}`)
+            setError('Capture failed.')
+            setState('error')
+        }
+    }
 
     const addLog = (msg: string) => {
         console.log(`[Wizard] ${msg}`)
@@ -105,8 +170,17 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                 body: JSON.stringify({ url })
             })
             if (!res.ok) throw new Error(`Start failed: ${res.status}`)
-            addLog('Start success. Browser window should be open.')
-            waitForCapture()
+            addLog('Browser session started.')
+
+            if (isRemoteBrowser) {
+                // Codespace: fetch initial screenshot and show remote panel
+                await new Promise(r => setTimeout(r, 1500)) // let page load
+                await refreshScreenshot()
+                setState('waiting-for-user')
+            } else {
+                addLog('Browser window should be open.')
+                waitForCapture()
+            }
         } catch (err) {
             addLog(`Error: ${err}`)
             setError('Could not start browser.')
@@ -201,7 +275,13 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
     const handleAddStep = () => {
         if (!currentResult) return
         onAddStep(currentResult)
-        waitForCapture(true)
+        if (isRemoteBrowser) {
+            // Back to remote panel — refresh screenshot
+            setState('waiting-for-user')
+            refreshScreenshot()
+        } else {
+            waitForCapture(true)
+        }
     }
 
     const stopSession = async () => {
@@ -249,7 +329,7 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900/90 backdrop-blur-2xl rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10 ring-1 ring-white/5">
+            <div className={`bg-slate-900/90 backdrop-blur-2xl rounded-2xl shadow-2xl w-full overflow-hidden flex flex-col max-h-[90vh] border border-white/10 ring-1 ring-white/5 ${isRemoteBrowser ? 'max-w-4xl' : 'max-w-2xl'}`}>
                 {/* Header */}
                 <div className="p-5 border-b border-white/5 flex items-center justify-between bg-transparent text-white">
                     <div className="flex items-center gap-3">
@@ -336,29 +416,109 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                     )}
 
                     {state === 'waiting-for-user' && (
-                        <div className="text-center py-10">
-                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse border-4 border-white shadow-xl ${mode === 'snapshot' ? 'bg-purple-50 text-purple-600 shadow-purple-50' : 'bg-red-50 text-red-600 shadow-red-50'}`}>
-                                {mode === 'snapshot' ? <Camera size={40} /> : <Video size={40} />}
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-3">
-                                {mode === 'snapshot' ? 'Click Capture Step' : 'Click Start Record'}
-                            </h3>
-                            <p className="text-slate-400 max-w-xs mx-auto text-sm leading-relaxed mb-6">
-                                {mode === 'snapshot'
-                                    ? 'Go to your app, navigate, and click the snapshot button.'
-                                    : 'A video button has been added. Click it or press SPACE to start/stop action.'}
-                            </p>
+                        isRemoteBrowser ? (
+                            <div className="space-y-3">
+                                {/* URL bar */}
+                                <div className="flex gap-2">
+                                    <div className="flex items-center gap-1.5 bg-slate-950/50 border border-white/10 rounded-lg px-2 text-slate-500">
+                                        <Globe size={14} />
+                                    </div>
+                                    <input
+                                        type="url"
+                                        value={remoteNavInput}
+                                        onChange={e => setRemoteNavInput(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && remoteNavigate(remoteNavInput)}
+                                        className="flex-1 px-3 py-2 bg-slate-950/50 border border-white/10 text-white rounded-lg text-sm focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 outline-none font-mono"
+                                        placeholder="https://example.com"
+                                    />
+                                    <button
+                                        onClick={() => remoteNavigate(remoteNavInput)}
+                                        disabled={isRefreshing}
+                                        className="px-3 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 text-sm flex items-center gap-1 disabled:opacity-50 transition-colors"
+                                    >
+                                        <ArrowRight size={15} />
+                                        Go
+                                    </button>
+                                </div>
 
-                            {mode === 'video' && (
-                                <button
-                                    onClick={triggerBrowserStart}
-                                    className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-100 flex items-center gap-2 mx-auto"
-                                >
-                                    <Video size={18} />
-                                    Start Recording Now
-                                </button>
-                            )}
-                        </div>
+                                {/* Browser screenshot */}
+                                <div className="relative aspect-video bg-slate-950 rounded-xl overflow-hidden border border-white/10 shadow-inner">
+                                    {isRefreshing && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+                                            <Loader2 size={36} className="animate-spin text-purple-400" />
+                                        </div>
+                                    )}
+                                    {remoteSrc ? (
+                                        <img src={remoteSrc} alt="Remote browser" className="w-full h-full object-contain" />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
+                                            <Globe size={32} className="opacity-30" />
+                                            <span className="text-sm">Loading browser preview...</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Current URL display */}
+                                {remoteUrl && (
+                                    <p className="text-[10px] text-slate-500 font-mono truncate px-1">{remoteUrl}</p>
+                                )}
+
+                                {/* Action buttons */}
+                                <div className="flex gap-2 pt-1">
+                                    <button
+                                        onClick={refreshScreenshot}
+                                        disabled={isRefreshing}
+                                        className="flex items-center gap-1.5 px-4 py-2.5 bg-white/5 text-slate-300 rounded-lg font-bold hover:bg-white/10 text-sm border border-white/10 disabled:opacity-50 transition-colors"
+                                    >
+                                        <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+                                        Refresh
+                                    </button>
+                                    {mode === 'snapshot' ? (
+                                        <button
+                                            onClick={remoteSnap}
+                                            disabled={isRefreshing}
+                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 text-sm shadow-lg shadow-purple-500/20 transition-colors disabled:opacity-50"
+                                        >
+                                            <Camera size={15} />
+                                            Capture This Step
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={triggerBrowserStart}
+                                            disabled={isRefreshing}
+                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 text-sm shadow-lg shadow-red-500/20 transition-colors disabled:opacity-50"
+                                        >
+                                            <Video size={15} />
+                                            Start Recording
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-10">
+                                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse border-4 border-white shadow-xl ${mode === 'snapshot' ? 'bg-purple-50 text-purple-600 shadow-purple-50' : 'bg-red-50 text-red-600 shadow-red-50'}`}>
+                                    {mode === 'snapshot' ? <Camera size={40} /> : <Video size={40} />}
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-3">
+                                    {mode === 'snapshot' ? 'Click Capture Step' : 'Click Start Record'}
+                                </h3>
+                                <p className="text-slate-400 max-w-xs mx-auto text-sm leading-relaxed mb-6">
+                                    {mode === 'snapshot'
+                                        ? 'Go to your app, navigate, and click the snapshot button.'
+                                        : 'A video button has been added. Click it or press SPACE to start/stop action.'}
+                                </p>
+
+                                {mode === 'video' && (
+                                    <button
+                                        onClick={triggerBrowserStart}
+                                        className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-100 flex items-center gap-2 mx-auto"
+                                    >
+                                        <Video size={18} />
+                                        Start Recording Now
+                                    </button>
+                                )}
+                            </div>
+                        )
                     )}
 
                     {state === 'recording' && (
@@ -457,7 +617,14 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
                         {state === 'review' ? (
                             <div className="flex gap-4 w-full">
                                 <button
-                                    onClick={() => waitForCapture(true)}
+                                    onClick={() => {
+                                        if (isRemoteBrowser) {
+                                            setState('waiting-for-user')
+                                            refreshScreenshot()
+                                        } else {
+                                            waitForCapture(true)
+                                        }
+                                    }}
                                     className="flex-1 px-6 py-4 bg-transparent text-slate-400 rounded-xl font-bold border border-white/10 hover:bg-white/5 transition-all"
                                 >
                                     Dismiss
