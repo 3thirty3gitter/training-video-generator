@@ -7,6 +7,7 @@ interface StepEditorProps {
     step: TutorialStep
     onUpdate: (updates: Partial<TutorialStep>) => void
     onGenerateNarration: (overrides?: Partial<TutorialStep>) => void
+    onReanalyzeVideo?: () => void
     isGenerating: boolean
 }
 
@@ -14,6 +15,7 @@ export default function StepEditor({
     step,
     onUpdate,
     onGenerateNarration,
+    onReanalyzeVideo,
     isGenerating
 }: StepEditorProps) {
     const [isVoiceOverOpen, setIsVoiceOverOpen] = useState(false)
@@ -156,24 +158,41 @@ export default function StepEditor({
                     <label className="block text-sm font-medium text-slate-300">
                         Narration & Audio
                     </label>
-                    <button
-                        onClick={handleGenerate}
-                        disabled={isGenerating || (!step.title?.trim() && !step.action?.trim())}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-300 bg-purple-900/30 border border-purple-500/20 rounded-lg hover:bg-purple-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        title={(!step.title?.trim() && !step.action?.trim()) ? "Add a title or action first" : "Generate narration with AI"}
-                    >
-                        {isGenerating ? (
-                            <>
-                                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                Generating...
-                            </>
-                        ) : (
-                            <>
-                                <Wand2 size={14} />
-                                AI Generate Script
-                            </>
+                    <div className="flex items-center gap-2">
+                        {step.type === 'video' && step.videoUrl && onReanalyzeVideo && (
+                            <button
+                                onClick={onReanalyzeVideo}
+                                disabled={isGenerating}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-300 bg-amber-900/30 border border-amber-500/20 rounded-lg hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Re-analyze video with AI to generate title and narration"
+                            >
+                                {isGenerating ? (
+                                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <Wand2 size={14} />
+                                )}
+                                Re-analyze Video
+                            </button>
                         )}
-                    </button>
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isGenerating || (!step.title?.trim() && !step.action?.trim())}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-300 bg-purple-900/30 border border-purple-500/20 rounded-lg hover:bg-purple-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title={(!step.title?.trim() && !step.action?.trim()) ? "Add a title or action first" : "Generate narration with AI"}
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Wand2 size={14} />
+                                    AI Generate Script
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 <textarea

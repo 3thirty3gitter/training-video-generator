@@ -30,6 +30,8 @@ export default function Home() {
     const [currentStep, setCurrentStep] = useState<string | null>(null)
     const [isCapturing, setIsCapturing] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
+    const [isGeneratingAll, setIsGeneratingAll] = useState(false)
+    const [generateAllProgress, setGenerateAllProgress] = useState<{ current: number; total: number } | null>(null)
     const [isInteractive, setIsInteractive] = useState(false)
     const [loginWaitTime, setLoginWaitTime] = useState(0)
     const [showWizard, setShowWizard] = useState(false)
@@ -175,6 +177,64 @@ export default function Home() {
         } finally {
             setIsGenerating(false)
         }
+    }
+
+    const reanalyzeVideo = async (id: string) => {
+        const step = steps.find(s => s.id === id)
+        if (!step?.videoUrl) return
+        setIsGenerating(true)
+        try {
+            const res = await fetch('/api/analyze-video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ videoUrl: step.videoUrl }),
+            })
+            const data = await res.json()
+            if (data.success) {
+                updateStep(id, { title: data.title, narration: data.narration })
+            } else {
+                alert('Re-analyze failed: ' + data.error)
+            }
+        } catch (e) {
+            console.error('Re-analyze error:', e)
+            alert('Failed to re-analyze video')
+        } finally {
+            setIsGenerating(false)
+        }
+    }
+
+    const generateAllNarrations = async () => {
+        const pending = steps.filter(
+            s => s.type === 'video' && s.videoUrl &&
+            (s.narration === 'Video action recorded successfully.' || s.title === 'Video Action')
+        )
+        if (pending.length === 0) {
+            alert('No video steps with missing narration found.')
+            return
+        }
+        setIsGeneratingAll(true)
+        setGenerateAllProgress({ current: 0, total: pending.length })
+        for (let i = 0; i < pending.length; i++) {
+            setGenerateAllProgress({ current: i + 1, total: pending.length })
+            const step = pending[i]
+            try {
+                const res = await fetch('/api/analyze-video', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoUrl: step.videoUrl }),
+                })
+                const data = await res.json()
+                if (data.success) {
+                    updateStep(step.id, { title: data.title, narration: data.narration })
+                }
+            } catch (e) {
+                console.error(`Failed to analyze step ${step.id}:`, e)
+            }
+            // Small delay to avoid rate limiting
+            if (i < pending.length - 1) await new Promise(r => setTimeout(r, 1000))
+        }
+        setIsGeneratingAll(false)
+        setGenerateAllProgress(null)
     }
 
     const exportToVideo = () => {
@@ -379,6 +439,18 @@ export default function Home() {
                                     <Wand2 size={18} />
                                 </button>
                                 <button
+                                    onClick={generateAllNarrations}
+                                    disabled={isGeneratingAll || isGenerating}
+                                    className="p-2 bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors disabled:opacity-50"
+                                    title="Generate narrations for all video steps"
+                                >
+                                    {isGeneratingAll ? (
+                                        <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <Wand2 size={18} />
+                                    )}
+                                </button>
+                                <button
                                     onClick={addStep}
                                     className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                                     title="Add step manually"
@@ -387,6 +459,20 @@ export default function Home() {
                                 </button>
                             </div>
                         </div>
+                        {isGeneratingAll && generateAllProgress && (
+                            <div className="mt-3 px-1">
+                                <div className="flex items-center justify-between text-[10px] text-amber-400 font-bold mb-1">
+                                    <span>Analyzing videos with AI...</span>
+                                    <span>{generateAllProgress.current} / {generateAllProgress.total}</span>
+                                </div>
+                                <div className="w-full bg-slate-800 rounded-full h-1.5">
+                                    <div
+                                        className="bg-amber-500 h-1.5 rounded-full transition-all"
+                                        style={{ width: `${(generateAllProgress.current / generateAllProgress.total) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-4">
                             <div>
@@ -670,6 +756,7 @@ export default function Home() {
                                     step={steps.find(s => s.id === currentStep)!}
                                     onUpdate={(updates) => updateStep(currentStep, updates)}
                                     onGenerateNarration={(overrides) => generateNarration(currentStep, overrides)}
+                                    onReanalyzeVideo={() => reanalyzeVideo(currentStep)}
                                     isGenerating={isGenerating}
                                 />
                             )}
