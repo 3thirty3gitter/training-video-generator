@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react'
-import { X, Camera, Plus, Loader2, Play, AlertCircle, Video, Square } from 'lucide-react'
+import { X, Camera, Plus, Loader2, Play, AlertCircle, Video, Square, MonitorOff } from 'lucide-react'
 
 interface WizardOverlayProps {
     isOpen: boolean
@@ -10,6 +10,10 @@ interface WizardOverlayProps {
 }
 
 type WizardState = 'idle' | 'starting' | 'waiting-for-user' | 'recording' | 'analyzing' | 'review' | 'error'
+
+// Wizard requires a visible browser — only works when running locally
+const isLocalDev = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
 type CaptureMode = 'snapshot' | 'video'
 
 export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }: WizardOverlayProps) {
@@ -201,6 +205,39 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
     }
 
     if (!isOpen) return null
+
+    // Wizard requires a visible Chromium window — not available on Vercel/production
+    if (!isLocalDev) {
+        return (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl w-full max-w-lg p-8 text-center">
+                    <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white">
+                        <X size={20} />
+                    </button>
+                    <div className="w-16 h-16 bg-amber-900/30 text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-amber-500/30">
+                        <MonitorOff size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-3">Wizard Requires Local Dev</h3>
+                    <p className="text-slate-400 leading-relaxed mb-6">
+                        The Interactive Wizard launches a real browser window on your machine so you can navigate and click to capture steps. This requires the app to be running <span className="text-white font-semibold">locally</span>.
+                    </p>
+                    <div className="bg-slate-950/60 rounded-xl p-4 text-left border border-white/5 mb-6 font-mono text-sm">
+                        <div className="text-slate-500 text-xs mb-2 uppercase tracking-widest">Run locally</div>
+                        <div className="text-green-400">git clone [repo]</div>
+                        <div className="text-green-400">npm install</div>
+                        <div className="text-green-400">npm run dev</div>
+                        <div className="text-slate-400 mt-1">→ Open <span className="text-white">localhost:3000</span></div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="w-full px-6 py-3 bg-white/10 text-white rounded-xl font-bold hover:bg-white/20 transition-colors border border-white/10"
+                    >
+                        Got it
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">

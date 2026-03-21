@@ -10,6 +10,8 @@ import fs from 'fs'
 // Allow this route up to 300s on Vercel Pro (serverless max)
 export const maxDuration = 300
 
+const VERCEL_MSG = 'The Interactive Wizard requires a visible browser and only works in local development (npm run dev). It cannot run on Vercel serverless.'
+
 const LOG_FILE = path.join(process.cwd(), 'wizard_debug.log')
 function debugLog(msg: string) {
     const entry = `[${new Date().toISOString()}] ${msg}\n`
@@ -259,6 +261,9 @@ async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video'
 }
 
 export async function POST(request: NextRequest) {
+    if (process.env.VERCEL) {
+        return NextResponse.json({ error: VERCEL_MSG }, { status: 503 })
+    }
     try {
         const { mode = 'snapshot', reset = false } = await request.json();
         const browser = await getBrowserSession()
