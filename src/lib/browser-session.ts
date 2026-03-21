@@ -74,10 +74,14 @@ export async function createBrowserSession(): Promise<Browser> {
 
     if (IS_VERCEL) {
         // Serverless environment: use @sparticuz/chromium
+        // The binary is NOT bundled — must be downloaded from CDN at cold-start.
+        // Set CHROMIUM_PATH env var on Vercel to override the CDN URL if needed.
         const chromium = (await import('@sparticuz/chromium')).default
         chromium.setHeadlessMode = true
         chromium.setGraphicsMode = false
-        const executablePath = await chromium.executablePath()
+        const chromiumRemoteUrl = process.env.CHROMIUM_PATH ||
+            'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
+        const executablePath = await chromium.executablePath(chromiumRemoteUrl)
         browser = await puppeteerCore.launch({
             executablePath,
             headless: true,
