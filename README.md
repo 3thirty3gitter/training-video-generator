@@ -44,3 +44,5 @@ Open http://localhost:3000 to start creating training videos.
 - Update announcements
 - Documentation videos
 - Sales demos
+
+npm install -g@bradygaster/squad-cli

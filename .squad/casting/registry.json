@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "agents": [
+    { "name": "Dev", "role": "developer", "charter": "agents/dev/charter.md" },
+    { "name": "Reviewer", "role": "reviewer", "charter": "agents/reviewer/charter.md" },
+    { "name": "QA", "role": "qa", "charter": "agents/qa/charter.md" },
+    { "name": "DevOps", "role": "devops", "charter": "agents/devops/charter.md" },
+    { "name": "Scribe", "role": "scribe", "charter": "agents/scribe/charter.md" }
+  ]
+}
