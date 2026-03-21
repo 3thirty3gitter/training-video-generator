@@ -34,3 +34,7 @@ Testing specialist responsible for validating the video generation pipeline, API
 - Write minimal, focused tests — one assertion per logical concern
 - Use real fixture data where possible; mock external APIs (Gemini, TTS) in unit tests
 - Log findings in history.md for the dev agent to action
+
+## Operating Protocol
+
+> **MANDATORY:** Read and comply with `.squad/protocols/operating-protocol.md` at the start of every session before performing any work.

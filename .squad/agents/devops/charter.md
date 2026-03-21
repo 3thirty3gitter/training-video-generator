@@ -34,3 +34,7 @@ Infrastructure and deployment specialist responsible for Docker, CI/CD, and Fire
 - Test Docker builds locally before pushing
 - Document all required environment variables in README or `.env.example`
 - Check that native modules (FFmpeg, sharp, Puppeteer) work correctly in container
+
+## Operating Protocol
+
+> **MANDATORY:** Read and comply with `.squad/protocols/operating-protocol.md` at the start of every session before performing any work.

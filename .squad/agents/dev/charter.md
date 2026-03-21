@@ -31,3 +31,7 @@ Full-stack developer responsible for implementing features, fixing bugs, and mai
 - Prefer editing existing files over creating new ones
 - Test changes against the dev server (`npm run dev`) before marking done
 - Communicate blockers to the team immediately
+
+## Operating Protocol
+
+> **MANDATORY:** Read and comply with `.squad/protocols/operating-protocol.md` at the start of every session before performing any work.
