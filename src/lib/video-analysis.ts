@@ -28,9 +28,11 @@ export async function processAndAnalyzeVideo() {
     } catch (e) { /* ignore cleanup error */ }
 
     // 1. Stop recording and get the disk path
-    const videoDiskPath = await stopRecording();
-    const filename = path.basename(videoDiskPath);
-    const webUrl = `/recordings/${filename}`;
+    const webUrl = await stopRecording(); // already returns the correct web URL (local or Vercel)
+    const filename = path.basename(webUrl);
+    const videoDiskPath = process.env.VERCEL
+        ? `/tmp/recordings/${filename}`
+        : path.join(process.cwd(), 'public', 'recordings', filename);
 
     let narration = "Video action recorded successfully.";
 

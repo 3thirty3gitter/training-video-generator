@@ -7,6 +7,9 @@ import { startRecording } from '@/lib/video-recorder'
 import path from 'path'
 import fs from 'fs'
 
+// Allow this route up to 300s on Vercel Pro (serverless max)
+export const maxDuration = 300
+
 const LOG_FILE = path.join(process.cwd(), 'wizard_debug.log')
 function debugLog(msg: string) {
     const entry = `[${new Date().toISOString()}] ${msg}\n`
@@ -16,7 +19,7 @@ function debugLog(msg: string) {
 
 async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video', reset: boolean = false) {
     const LOOP_DELAY = 1000;
-    const MAX_WAIT_TIME = 600000;
+    const MAX_WAIT_TIME = 280000; // 280s — fits inside Vercel Pro 300s maxDuration
     const startTime = Date.now();
 
     debugLog(`Wizard: Waiting for ${mode} interaction... (Reset: ${reset})`);

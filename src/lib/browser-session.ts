@@ -13,9 +13,31 @@ interface BrowserSession {
     browserWSEndpoint: string
 }
 
+// Module-level singleton — persists across warm Lambda invocations (Vercel)
+// and across requests in local dev. This avoids file-based session on Vercel
+// where the filesystem is ephemeral per-invocation.
+let _browserInstance: Browser | null = null
+
 export async function getBrowserSession(): Promise<Browser | null> {
+    // Check in-memory singleton first (works on both Vercel and local)
+    if (_browserInstance) {
+        try {
+            await _browserInstance.pages() // will throw if browser has closed
+            return _browserInstance
+        } catch {
+            _browserInstance = null
+        }
+    }
+
+    // On Vercel, no filesystem persistence — in-memory singleton only
+    if (IS_VERCEL) {
+        console.log('Wizard: No active Vercel browser session in memory.')
+        return null
+    }
+
+    // Local dev: try reconnecting via session file
     if (!fs.existsSync(SESSION_FILE)) {
-        console.log('Wizard: Session file not found.');
+        console.log('Wizard: Session file not found.')
         return null
     }
 
@@ -29,12 +51,11 @@ export async function getBrowserSession(): Promise<Browser | null> {
             browserWSEndpoint: session.browserWSEndpoint,
             defaultViewport: null,
         })
-        console.log('🔌 Connected successfully.');
-
+        console.log('🔌 Connected successfully.')
+        _browserInstance = browser
         return browser
     } catch (error) {
         console.error('Failed to connect to browser session:', error)
-        // Clean up invalid session file
         try { fs.unlinkSync(SESSION_FILE) } catch { }
         return null
     }
@@ -78,21 +99,19 @@ export async function createBrowserSession(): Promise<Browser> {
                 '--start-maximized',
             ],
         })
+
+        // Persist session file only for local dev (filesystem is persistent)
+        fs.writeFileSync(SESSION_FILE, JSON.stringify({ browserWSEndpoint: browser.wsEndpoint() }))
+        console.log(`💾 Saved browser session to ${SESSION_FILE}`)
     }
 
-    const session: BrowserSession = {
-        browserWSEndpoint: browser.wsEndpoint()
-    }
-
-    fs.writeFileSync(SESSION_FILE, JSON.stringify(session))
-    console.log(`💾 Saved browser session to ${SESSION_FILE}`)
-
+    _browserInstance = browser
     return browser
 }
 
 export async function closeBrowserSession() {
     try {
-        const browser = await getBrowserSession()
+        const browser = _browserInstance || await getBrowserSession()
         if (browser) {
             console.log('🛑 Closing browser session...')
             await browser.close()
@@ -100,7 +119,8 @@ export async function closeBrowserSession() {
     } catch (error) {
         console.error('Error closing browser:', error)
     } finally {
-        if (fs.existsSync(SESSION_FILE)) {
+        _browserInstance = null
+        if (!IS_VERCEL && fs.existsSync(SESSION_FILE)) {
             fs.unlinkSync(SESSION_FILE)
             console.log('🗑️ Removed session file')
         }

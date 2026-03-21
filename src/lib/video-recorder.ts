@@ -14,7 +14,11 @@ function debugLog(msg: string) {
 let currentRecorder: PuppeteerScreenRecorder | null = null;
 let currentVideoPath: string | null = null;
 
-const RECORDINGS_DIR = path.join(process.cwd(), 'public', 'recordings');
+// On Vercel, public/ is read-only (deployed artefact). Use /tmp instead.
+const IS_VERCEL = !!process.env.VERCEL
+const RECORDINGS_DIR = IS_VERCEL
+    ? '/tmp/recordings'
+    : path.join(process.cwd(), 'public', 'recordings')
 
 export async function startRecording(page: Page): Promise<string> {
     if (currentRecorder) {
@@ -60,7 +64,9 @@ export async function startRecording(page: Page): Promise<string> {
     console.log(`[Video] Starting recording: ${fullPath}`);
     await currentRecorder.start(fullPath);
 
-    return `/recordings/${filename}`; // Return web-accessible path
+    // On Vercel /tmp isn't served statically — recordings are accessed via API route
+    const webPath = IS_VERCEL ? `/api/recordings/${filename}` : `/recordings/${filename}`
+    return webPath;
 }
 
 export async function stopRecording(): Promise<string> {
