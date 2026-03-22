@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # AI / API keys — copy .env.example to .env and fill these in
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Firebase (optional — for cloud persistence)
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL:-}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY:-}
+    volumes:
+      # Persist generated files across container restarts
+      - audio_narration:/app/public/audio/narration
+      - audio_recordings:/app/public/audio/recordings
+      - recordings:/app/public/recordings
+      - exports:/app/public/exports/videos
+      - music:/app/public/music
+      # Persist project data (used when Firebase is not configured)
+      - project_data:/app/project_data.json
+    restart: unless-stopped
+
+volumes:
+  audio_narration:
+  audio_recordings:
+  recordings:
+  exports:
+  music:
+  project_data:
