@@ -3,11 +3,64 @@
   "version": "1.0.0",
   "description": "Automate SaaS training video creation for Google NotebookLM",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "electron:dev": "npm run build && electron .",
+    "electron:build:win": "npm run build && electron-builder --win --x64",
+    "electron:build:mac": "npm run build && electron-builder --mac --x64 --arm64"
+  },
+  "build": {
+    "appId": "com.trainingvideogenerator.app",
+    "productName": "Training Video Generator",
+    "asar": false,
+    "files": [
+      ".next/standalone/**",
+      "electron/**",
+      "public/**",
+      "generate_kokoro.py",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/@ffmpeg-installer/ffmpeg/binaries",
+        "to": "ffmpeg-binaries",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "public/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -40,6 +93,11 @@
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "autoprefixer": "^10.4.17",
+    "concurrently": "^8.2.2",
+    "electron": "^29.1.0",
+    "electron-builder": "^24.13.3",
+    "eslint": "8.57.1",
+    "eslint-config-next": "16.2.1",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3"
