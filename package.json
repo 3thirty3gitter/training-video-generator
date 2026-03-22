@@ -10,8 +10,9 @@
     "start": "next start",
     "lint": "next lint",
     "electron:dev": "npm run build && electron .",
-    "electron:build:win": "npm run build && electron-builder --win --x64",
-    "electron:build:mac": "npm run build && electron-builder --mac --x64 --arm64"
+    "electron:build:win": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64",
+    "electron:build:mac": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --x64 --arm64",
+    "electron:build:dir": "npm run build && electron-builder --dir"
   },
   "build": {
     "appId": "com.trainingvideogenerator.app",
@@ -24,15 +25,7 @@
       "generate_kokoro.py",
       "package.json"
     ],
-    "extraResources": [
-      {
-        "from": "node_modules/@ffmpeg-installer/ffmpeg/binaries",
-        "to": "ffmpeg-binaries",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
+
     "win": {
       "target": [
         {
@@ -42,7 +35,8 @@
           ]
         }
       ],
-      "icon": "public/icon.ico"
+      "icon": "public/icon.ico",
+      "sign": null
     },
     "mac": {
       "target": [
@@ -94,6 +88,7 @@
     "@types/react-dom": "^18.2.19",
     "autoprefixer": "^10.4.17",
     "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "electron": "^29.1.0",
     "electron-builder": "^24.13.3",
     "eslint": "8.57.1",
