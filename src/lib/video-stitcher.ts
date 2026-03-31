@@ -2,27 +2,11 @@ import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import fs from 'fs';
 import { TutorialStep } from '@/app/page';
+import { getFfmpegPath, getFfprobePath } from '@/lib/paths';
 
-// Resolve ffmpeg path manually like we did in video-recorder
-// Resolve ffmpeg path manually like we did in video-recorder
-const isWin = process.platform === 'win32';
-const ffmpegPath = path.join(
-    process.cwd(),
-    'node_modules',
-    '@ffmpeg-installer',
-    isWin ? 'win32-x64' : 'linux-x64',
-    isWin ? 'ffmpeg.exe' : 'ffmpeg'
-);
-ffmpeg.setFfmpegPath(ffmpegPath);
-
-const ffprobePath = path.join(
-    process.cwd(),
-    'node_modules',
-    '@ffprobe-installer',
-    isWin ? 'win32-x64' : 'linux-x64',
-    isWin ? 'ffprobe.exe' : 'ffprobe'
-);
-ffmpeg.setFfprobePath(ffprobePath);
+// FFmpeg Setup
+ffmpeg.setFfmpegPath(getFfmpegPath());
+ffmpeg.setFfprobePath(getFfprobePath());
 
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'exports', 'videos');
 if (!fs.existsSync(OUTPUT_DIR)) {

@@ -3,6 +3,7 @@ import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder';
 import { Page } from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
+import { getFfmpegPath } from '@/lib/paths';
 
 const LOG_FILE = path.join(process.cwd(), 'wizard_debug.log')
 function debugLog(msg: string) {
@@ -28,14 +29,7 @@ export async function startRecording(page: Page): Promise<string> {
     const filename = `recording-${Date.now()}.mp4`;
     const fullPath = path.join(RECORDINGS_DIR, filename);
 
-    const isWin = process.platform === 'win32';
-    const ffmpegPath = path.join(
-        process.cwd(),
-        'node_modules',
-        '@ffmpeg-installer',
-        isWin ? 'win32-x64' : 'linux-x64',
-        isWin ? 'ffmpeg.exe' : 'ffmpeg'
-    );
+    const ffmpegPath = getFfmpegPath();
 
     debugLog(`[Video] Using FFmpeg at: ${ffmpegPath}`);
     if (!fs.existsSync(ffmpegPath)) {

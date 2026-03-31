@@ -5,6 +5,7 @@ import https from 'https';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import ffmpeg from 'fluent-ffmpeg';
+import { getFfmpegPath, getFfprobePath } from '@/lib/paths';
 
 const execAsync = promisify(exec);
 
@@ -15,26 +16,9 @@ if (!fs.existsSync(AUDIO_DIR)) {
     fs.mkdirSync(AUDIO_DIR, { recursive: true });
 }
 
-const isWin = process.platform === 'win32';
-
 // FFmpeg Setup
-const ffmpegPath = path.join(
-    process.cwd(),
-    'node_modules',
-    '@ffmpeg-installer',
-    isWin ? 'win32-x64' : 'linux-x64',
-    isWin ? 'ffmpeg.exe' : 'ffmpeg'
-);
-const ffprobePath = path.join(
-    process.cwd(),
-    'node_modules',
-    '@ffprobe-installer',
-    isWin ? 'win32-x64' : 'linux-x64',
-    isWin ? 'ffprobe.exe' : 'ffprobe'
-);
-
-ffmpeg.setFfmpegPath(ffmpegPath);
-ffmpeg.setFfprobePath(ffprobePath);
+ffmpeg.setFfmpegPath(getFfmpegPath());
+ffmpeg.setFfprobePath(getFfprobePath());
 
 // Character Definitions (Simulated via DSP)
 // We map these IDs to: Accent (TLD) + Pitch Shift + EQ
