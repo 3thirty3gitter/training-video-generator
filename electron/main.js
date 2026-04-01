@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell, dialog } = require('electron');
 const path = require('path');
 const http = require('http');
 const net = require('net');
+const fs = require('fs');
 
 const isDev = !app.isPackaged;
 const PORT = 3456; // Use non-standard port to avoid conflicts
@@ -16,6 +17,51 @@ function getAppRoot() {
   }
   // In production, resources are in the app.asar or unpacked directory
   return path.join(process.resourcesPath, 'app');
+}
+
+// Get the user data directory for storing project files, recordings, etc.
+function getUserDataDir() {
+  return app.getPath('userData');
+}
+
+// Set up Puppeteer to use bundled Chromium
+function setupPuppeteerChromium() {
+  const appRoot = getAppRoot();
+  const bundledChrome = path.join(appRoot, '.chromium');
+  
+  if (fs.existsSync(bundledChrome)) {
+    process.env.PUPPETEER_CACHE_DIR = bundledChrome;
+    console.log('Using bundled Chromium at:', bundledChrome);
+  } else if (!isDev) {
+    // In production, fall back to user data dir
+    const userChrome = path.join(getUserDataDir(), 'chromium');
+    process.env.PUPPETEER_CACHE_DIR = userChrome;
+    console.log('Puppeteer cache dir set to:', userChrome);
+  }
+}
+
+// Ensure required directories exist in user data
+function ensureUserDirs() {
+  if (isDev) return; // In dev, use project directory
+  
+  const userData = getUserDataDir();
+  const dirs = [
+    path.join(userData, 'audio', 'narration'),
+    path.join(userData, 'audio', 'recordings'),
+    path.join(userData, 'music'),
+    path.join(userData, 'recordings'),
+    path.join(userData, 'exports', 'videos'),
+  ];
+  
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+  
+  // Set env var so the Next.js server knows where to store user data
+  process.env.TVG_USER_DATA = userData;
+  console.log('User data directory:', userData);
 }
 
 function createWindow() {
@@ -123,6 +169,9 @@ async function startNextServer() {
 }
 
 app.whenReady().then(async () => {
+  setupPuppeteerChromium();
+  ensureUserDirs();
+
   try {
     await startNextServer();
     createWindow();
