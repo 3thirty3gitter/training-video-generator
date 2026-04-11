@@ -214,7 +214,8 @@ if (longPaths > 0) {
 
 // ─── Step 4: Copy Puppeteer Chromium ────────────────────────────────
 console.log('\n=== Bundling Puppeteer Chromium ===');
-const puppeteerCache = path.join(process.env.USERPROFILE, '.cache', 'puppeteer');
+const homeDir = process.env.USERPROFILE || process.env.HOME || require('os').homedir();
+const puppeteerCache = path.join(homeDir, '.cache', 'puppeteer');
 const destChrome = path.join(RESOURCES_APP, '.chromium');
 
 if (fs.existsSync(puppeteerCache)) {
