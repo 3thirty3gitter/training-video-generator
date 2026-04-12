@@ -11,22 +11,44 @@ async function ensureDisplay(): Promise<void> {
         console.log('🖥️  Windows detected — skipping virtual display setup')
         return
     }
-    // Always force :99 — don't trust whatever DISPLAY may already be set to
+    // Always force :99
     process.env.DISPLAY = ':99'
-    // If Xvfb is already running on :99, nothing to do
-    try {
-        execSync('pgrep -f "Xvfb :99"', { stdio: 'ignore' })
+
+    // Check if display :99 is actually accepting connections (not just if Xvfb process exists —
+    // pgrep matching is unreliable because the shell command itself contains "Xvfb :99")
+    const isDisplayReady = (): boolean => {
+        try {
+            execSync('xdpyinfo -display :99', { stdio: 'ignore', timeout: 2000 })
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    if (isDisplayReady()) {
         console.log('🖥️  Virtual display :99 already running')
         return
-    } catch { /* not running — start it */ }
+    }
+
+    // Kill any stale Xvfb process before starting fresh
     try {
-        execSync('pkill Xvfb', { stdio: 'ignore' })
-    } catch { /* ignore */ }
+        execSync('pkill -9 Xvfb', { stdio: 'ignore' })
+        await new Promise(resolve => setTimeout(resolve, 300))
+    } catch { /* ignore — it wasn't running */ }
+
     spawn('Xvfb', [':99', '-screen', '0', '1920x1080x24', '-ac'], { detached: true, stdio: 'ignore' }).unref()
-    console.log('🖥️  Started virtual display :99 - waiting for it to initialize...')
-    // Wait for Xvfb to be ready before Chromium tries to connect
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    console.log('🖥️  Virtual display ready')
+    console.log('🖥️  Started virtual display :99 - waiting for it to be ready...')
+
+    // Poll until xdpyinfo confirms display is up (up to 8 seconds)
+    for (let i = 0; i < 16; i++) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        if (isDisplayReady()) {
+            console.log('🖥️  Virtual display :99 ready')
+            return
+        }
+    }
+
+    throw new Error('Failed to start virtual display — Xvfb did not become ready within 8 seconds')
 }
 
 const SESSION_FILE = path.resolve('./.puppeteer_session')
