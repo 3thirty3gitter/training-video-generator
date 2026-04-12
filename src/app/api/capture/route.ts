@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         console.log(`Starting screenshot capture for ${url} (Headless: ${headless})`)
 
         const browser = await puppeteer.launch({
-            headless: 'new', // Always headless - no display server in dev container
+            headless: headless ? 'new' : false, // Use 'new' for new headless mode, or false for visible
             defaultViewport: null, // Allow viewport to resize with window
             userDataDir: './.puppeteer_data', // Persist session data (cookies, localStorage)
             args: [

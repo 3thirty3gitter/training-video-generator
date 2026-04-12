@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
         // 1. Launch Puppeteer Visibly
         const browser = await puppeteer.launch({
-            headless: 'new', // Headless - no display server required
+            headless: false, // Visible!
             defaultViewport: null,
             userDataDir: './.puppeteer_data',
             args: [
