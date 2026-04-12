@@ -5,14 +5,17 @@ import path from 'path'
 import { execSync, spawn } from 'child_process'
 
 // Ensure a virtual display is available for headless environments (e.g. Codespaces)
-function ensureDisplay() {
+async function ensureDisplay(): Promise<void> {
     if (!process.env.DISPLAY) {
         try {
             execSync('pkill Xvfb', { stdio: 'ignore' })
         } catch { /* ignore */ }
         spawn('Xvfb', [':99', '-screen', '0', '1920x1080x24'], { detached: true, stdio: 'ignore' }).unref()
         process.env.DISPLAY = ':99'
-        console.log('🖥️  Started virtual display :99')
+        console.log('🖥️  Started virtual display :99 - waiting for it to initialize...')
+        // Wait for Xvfb to be ready before Chromium tries to connect
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        console.log('🖥️  Virtual display ready')
     }
 }
 
@@ -58,7 +61,7 @@ export async function createBrowserSession(): Promise<Browser> {
     }
 
     console.log('🚀 Launching new browser session...')
-    ensureDisplay()
+    await ensureDisplay()
     const browser = await puppeteer.launch({
         headless: false, // Always visible for interactive mode
         defaultViewport: null,
