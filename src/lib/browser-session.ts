@@ -2,6 +2,19 @@
 import puppeteer, { Browser } from 'puppeteer'
 import fs from 'fs'
 import path from 'path'
+import { execSync, spawn } from 'child_process'
+
+// Ensure a virtual display is available for headless environments (e.g. Codespaces)
+function ensureDisplay() {
+    if (!process.env.DISPLAY) {
+        try {
+            execSync('pkill Xvfb', { stdio: 'ignore' })
+        } catch { /* ignore */ }
+        spawn('Xvfb', [':99', '-screen', '0', '1920x1080x24'], { detached: true, stdio: 'ignore' }).unref()
+        process.env.DISPLAY = ':99'
+        console.log('🖥️  Started virtual display :99')
+    }
+}
 
 const SESSION_FILE = path.resolve('./.puppeteer_session')
 const USER_DATA_DIR = path.resolve('./.puppeteer_data')
@@ -45,6 +58,7 @@ export async function createBrowserSession(): Promise<Browser> {
     }
 
     console.log('🚀 Launching new browser session...')
+    ensureDisplay()
     const browser = await puppeteer.launch({
         headless: false, // Always visible for interactive mode
         defaultViewport: null,
