@@ -46,7 +46,7 @@ export async function createBrowserSession(): Promise<Browser> {
 
     console.log('🚀 Launching new browser session...')
     const browser = await puppeteer.launch({
-        headless: false, // Always visible for interactive mode
+        headless: 'new', // Headless - no display server required
         defaultViewport: null,
         userDataDir: USER_DATA_DIR,
         args: [
