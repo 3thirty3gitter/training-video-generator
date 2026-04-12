@@ -6,17 +6,22 @@ import { execSync, spawn } from 'child_process'
 
 // Ensure a virtual display is available for headless environments (e.g. Codespaces)
 async function ensureDisplay(): Promise<void> {
-    if (!process.env.DISPLAY) {
-        try {
-            execSync('pkill Xvfb', { stdio: 'ignore' })
-        } catch { /* ignore */ }
-        spawn('Xvfb', [':99', '-screen', '0', '1920x1080x24'], { detached: true, stdio: 'ignore' }).unref()
-        process.env.DISPLAY = ':99'
-        console.log('🖥️  Started virtual display :99 - waiting for it to initialize...')
-        // Wait for Xvfb to be ready before Chromium tries to connect
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        console.log('🖥️  Virtual display ready')
-    }
+    // Always force :99 — don't trust whatever DISPLAY may already be set to
+    process.env.DISPLAY = ':99'
+    // If Xvfb is already running on :99, nothing to do
+    try {
+        execSync('pgrep -f "Xvfb :99"', { stdio: 'ignore' })
+        console.log('🖥️  Virtual display :99 already running')
+        return
+    } catch { /* not running — start it */ }
+    try {
+        execSync('pkill Xvfb', { stdio: 'ignore' })
+    } catch { /* ignore */ }
+    spawn('Xvfb', [':99', '-screen', '0', '1920x1080x24', '-ac'], { detached: true, stdio: 'ignore' }).unref()
+    console.log('🖥️  Started virtual display :99 - waiting for it to initialize...')
+    // Wait for Xvfb to be ready before Chromium tries to connect
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    console.log('🖥️  Virtual display ready')
 }
 
 const SESSION_FILE = path.resolve('./.puppeteer_session')
