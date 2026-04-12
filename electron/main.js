@@ -24,20 +24,33 @@ function getUserDataDir() {
   return app.getPath('userData');
 }
 
-// Set up Puppeteer to use bundled Chromium
+// Set up Puppeteer to use bundled Chromium (only if it's the right platform)
 function setupPuppeteerChromium() {
   const appRoot = getAppRoot();
   const bundledChrome = path.join(appRoot, '.chromium');
   
   if (fs.existsSync(bundledChrome)) {
-    process.env.PUPPETEER_CACHE_DIR = bundledChrome;
-    console.log('Using bundled Chromium at:', bundledChrome);
-  } else if (!isDev) {
-    // In production, fall back to user data dir
-    const userChrome = path.join(getUserDataDir(), 'chromium');
-    process.env.PUPPETEER_CACHE_DIR = userChrome;
-    console.log('Puppeteer cache dir set to:', userChrome);
+    // Check if the bundled Chromium matches the current platform
+    const chromeDirs = fs.readdirSync(path.join(bundledChrome, 'chrome') || bundledChrome).filter(d => d.includes('-'));
+    const platformMatch = chromeDirs.some(d => {
+      if (process.platform === 'win32') return d.includes('win');
+      if (process.platform === 'darwin') return d.includes('mac');
+      return d.includes('linux');
+    });
+
+    if (platformMatch) {
+      process.env.PUPPETEER_CACHE_DIR = bundledChrome;
+      console.log('Using bundled Chromium at:', bundledChrome);
+      return;
+    } else {
+      console.log('Bundled Chromium is for a different platform — will auto-download correct version.');
+    }
   }
+
+  // Fall back to user data dir — Puppeteer will download the correct platform binary
+  const userChrome = path.join(getUserDataDir(), 'chromium');
+  process.env.PUPPETEER_CACHE_DIR = userChrome;
+  console.log('Puppeteer cache dir set to:', userChrome);
 }
 
 // Ensure required directories exist in user data

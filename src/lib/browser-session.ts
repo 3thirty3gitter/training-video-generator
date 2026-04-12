@@ -5,7 +5,12 @@ import path from 'path'
 import { execSync, spawn } from 'child_process'
 
 // Ensure a virtual display is available for headless environments (e.g. Codespaces)
+// On Windows this is a no-op — the display is always available natively
 async function ensureDisplay(): Promise<void> {
+    if (process.platform === 'win32') {
+        console.log('🖥️  Windows detected — skipping virtual display setup')
+        return
+    }
     // Always force :99 — don't trust whatever DISPLAY may already be set to
     process.env.DISPLAY = ':99'
     // If Xvfb is already running on :99, nothing to do
@@ -67,6 +72,7 @@ export async function createBrowserSession(): Promise<Browser> {
 
     console.log('🚀 Launching new browser session...')
     await ensureDisplay()
+    const isWindows = process.platform === 'win32'
     const browser = await puppeteer.launch({
         headless: false, // Always visible for interactive mode
         defaultViewport: null,
@@ -76,7 +82,7 @@ export async function createBrowserSession(): Promise<Browser> {
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
-            '--disable-gpu',
+            ...(isWindows ? [] : ['--disable-gpu']),
             '--start-maximized',
         ],
     })
