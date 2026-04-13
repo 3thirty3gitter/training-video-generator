@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/3thirty3gitter/training-video-generator  
 **Created:** January 2026  
-**Last Updated:** April 12, 2026  
+**Last Updated:** April 13, 2026  
 **Status:** Local dev working ✅ | Electron Windows build v1.0.1 released ✅ | Vercel NOT supported (by design)
 
 ---
@@ -183,6 +183,23 @@ npm run dev
 - The app auto-starts **Xvfb** (virtual framebuffer) on `:99` when it detects it's not on Windows and `DISPLAY` is unset or invalid.
 - You can view the browser via **noVNC** on port 6080. Install with: `sudo apt-get install -y x11vnc novnc`
 - The Wizard works fully as intended on the **Windows Electron build** without any of this complexity.
+- To **view the browser** while testing the Wizard in Codespace, use noVNC (see below).
+
+#### Viewing the Wizard Browser in Codespace (noVNC)
+
+The browser runs on the virtual display `:99` — invisible by default. Start noVNC to view it:
+
+```bash
+# Start VNC server on the virtual display
+x11vnc -display :99 -nopw -forever -rfbport 5900 &
+
+# Start noVNC websocket proxy
+nohup /usr/share/novnc/utils/novnc_proxy --vnc localhost:5900 --listen 6080 > /tmp/novnc.log 2>&1 &
+```
+
+Then open **http://localhost:6080/vnc.html** in your browser (VS Code will auto-forward port 6080 — check the Ports tab).
+
+Both `x11vnc` and `novnc` are pre-installed in the dev container.
 
 ---
 
@@ -426,6 +443,12 @@ Latest release: https://github.com/3thirty3gitter/training-video-generator/relea
 | Wrong Chromium bundled (Linux binary on Windows) | Build runs on Linux, copies Linux chrome | `setupPuppeteerChromium()` in `electron/main.js` detects platform mismatch and falls back to auto-download |
 | `.next/export` dir not empty error on rebuild | Stale `.next` from previous run | Always `rm -rf .next` before rebuilding |
 
+### Session History (April 13, 2026)
+
+| Issue | Root Cause | Fix Applied |
+|-------|-----------|-------------|
+| Wizard API returns success but browser never opened | `pgrep -f "Xvfb :99"` matched **its own shell command** (the string `"Xvfb :99"` appears in the `execSync` shell invocation), causing a false positive — `ensureDisplay()` always skipped starting Xvfb | Replaced `pgrep` check with `xdpyinfo -display :99`, which actually connects to the display server. Added a poll loop (up to 8s) instead of fixed 1.5s wait. In `browser-session.ts` `ensureDisplay()`. |
+
 ---
 
 ## ❌ Why Vercel Does Not Work
@@ -660,6 +683,7 @@ gh release create vX.X.X dist-electron/TVG-win32-x64.zip \
 |---------|------|-------|
 | v1.0.0 | April 12, 2026 | First Windows build — browser launch broken (wrong Chromium) |
 | v1.0.1 | April 12, 2026 | Fixed: Windows platform detection, correct Chromium fallback, `--disable-gpu` removed on Windows |
+| v1.0.2 | April 13, 2026 | Fixed: Wizard browser never opened in Codespace — `pgrep` false positive in `ensureDisplay()` replaced with `xdpyinfo` real display check |
 
 
 ---
