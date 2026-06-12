@@ -112,13 +112,27 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
         addLog(`Mode: ${mode === 'snapshot' ? 'Snapshots' : 'Video Recording'}`)
         addLog('Waiting for you to click "Capture" in the browser...')
 
+        // Poll the status endpoint while this fetch is running so the UI
+        // can transition to 'analyzing' the moment the server detects a stop,
+        // without waiting for the full AI response to come back.
+        let statusPoller: ReturnType<typeof setInterval> | null = null
+        const startStatusPoller = () => {
+            statusPoller = setInterval(async () => {
+                try {
+                    const s = await fetch('/api/wizard/status').then(r => r.json())
+                    if (s.status === 'analyzing') {
+                        setState('analyzing')
+                        addLog('Gemini is watching your clip — generating narration...')
+                    }
+                } catch { }
+            }, 800)
+        }
+
         try {
-            // This is the snapshot loop. If we are in video mode, we might handle it differently.
-            // But for now, let's keep the capture route as the primary "listening" route.
             const res = await fetch('/api/wizard/capture', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode, reset }) // Tell backend if we want snapshot or video trigger
+                body: JSON.stringify({ mode, reset })
             })
 
             if (!res.ok) {
@@ -131,7 +145,9 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
             if (data.action === 'started_recording') {
                 addLog('Recording started in browser!')
                 setState('recording')
-                // IMPORTANT: Immediately start waiting for the STOP interaction
+                // Immediately start waiting for the STOP interaction,
+                // with the status poller active to catch the analyzing transition
+                startStatusPoller()
                 waitForCapture()
                 return;
             }
@@ -151,6 +167,7 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
             setError('Session interrupted.')
             setState('error')
         } finally {
+            if (statusPoller) clearInterval(statusPoller)
             setIsCapturing(false)
         }
     }
