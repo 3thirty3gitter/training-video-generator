@@ -1,0 +1,61 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload source
+        run: |
+          tar -czf /tmp/tvg-deploy.tar.gz --exclude=.git .
+          scp -i ~/.ssh/deploy_key /tmp/tvg-deploy.tar.gz root@${{ secrets.VPS_HOST }}:/tmp/tvg-deploy.tar.gz
+
+      - name: Build and restart containers
+        run: |
+          ssh -i ~/.ssh/deploy_key root@${{ secrets.VPS_HOST }} '
+            set -e
+            cd /opt/training-video-generator
+            tar -xzf /tmp/tvg-deploy.tar.gz
+            rm /tmp/tvg-deploy.tar.gz
+            docker compose build
+            docker compose up -d
+            docker image prune -f
+          '
+
+      - name: Wait for app health
+        run: |
+          ssh -i ~/.ssh/deploy_key root@${{ secrets.VPS_HOST }} '
+            for i in $(seq 1 30); do
+              status=$(docker inspect --format "{{.State.Health.Status}}" tvg-app 2>/dev/null || echo missing)
+              echo "tvg-app health: $status (attempt $i)"
+              [ "$status" = "healthy" ] && exit 0
+              sleep 5
+            done
+            echo "App failed to become healthy" >&2
+            docker logs tvg-app --tail 50
+            exit 1
+          '
+
+      - name: Verify site responds
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://tvg.333ai.tech)
+          echo "HTTPS status: $code"
+          # 401 = nginx up + basic auth enforced
+          [ "$code" = "401" ]

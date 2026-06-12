@@ -28,9 +28,13 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/.htpasswd:/etc/nginx/.htpasswd:ro
+      # TLS certificates (issued by certbot on the host)
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./deploy/certbot-www:/var/www/certbot:ro
       # Serve runtime-generated media directly (Next.js prod won't serve
       # public/ files created after build)
       - ./data/exports:/srv/media/exports:ro
