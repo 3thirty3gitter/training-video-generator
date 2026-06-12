@@ -106,6 +106,9 @@ export async function createBrowserSession(): Promise<Browser> {
             '--disable-accelerated-2d-canvas',
             ...(isWindows ? [] : ['--disable-gpu']),
             '--start-maximized',
+            // Xvfb has no window manager, so --start-maximized does nothing
+            // there; force the window to fill the virtual display instead
+            ...(isWindows ? [] : ['--window-size=1920,1080', '--window-position=0,0']),
         ],
     })
 
