@@ -86,7 +86,10 @@ async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video'
                         }
 
                         if (interaction === 'stop_recording') {
-                            // We return the instruction to stop. The calling route handler will then call the stop API.
+                            // Brief pause so the button-hide frame is captured
+                            // before ffmpeg flushes — keeps the overlay out of
+                            // the last frames of the recording
+                            await new Promise(r => setTimeout(r, 400));
                             return { action: 'stop_recording', page };
                         }
 
@@ -139,12 +142,10 @@ async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video'
 
                                 const toggleRec = () => {
                                     if ((window as any)._IS_RECORDING) {
-                                        // STOP
+                                        // STOP — hide button immediately so it doesn't
+                                        // appear in the last frames of the recording
                                         (window as any)._IS_RECORDING = false;
-                                        btn.style.visibility = 'visible';
-                                        btn.innerHTML = '⌛ Analyzing...';
-                                        btn.style.backgroundColor = '#64748b';
-                                        btn.style.animation = 'none';
+                                        btn.style.visibility = 'hidden';
                                         (window as any)._GEMINI_WIZARD_INTERACTION = 'stop_recording';
                                     } else {
                                         // START
@@ -272,7 +273,8 @@ export async function POST(request: NextRequest) {
 
         if (result.action === 'stop_recording') {
             console.log('Wizard: Browser triggered STOP. Processing analysis...');
-            const data = await processAndAnalyzeVideo();
+            const pageTitle = await result.page.title().catch(() => 'Recorded Step');
+            const data = await processAndAnalyzeVideo(pageTitle);
             return NextResponse.json(data);
         }
 
