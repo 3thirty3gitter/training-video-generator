@@ -9,6 +9,11 @@ set -e
 
 export DISPLAY=:99
 
+# Clear stale Chromium profile locks: the profile lives in a persistent
+# volume, and a previous container's Chrome leaves SingletonLock stamped
+# with the old hostname, blocking launches in the new container.
+rm -f /app/.puppeteer_data/Singleton* 2>/dev/null || true
+
 Xvfb :99 -screen 0 1920x1080x24 -ac &
 
 # Wait for the display to accept connections
