@@ -162,10 +162,17 @@ export default function WizardOverlay({ isOpen, onClose, onAddStep, initialUrl }
             addLog(`Captured: ${data.title}`)
             setCurrentResult(data)
             setState('review')
-        } catch (err) {
-            addLog(`Error: ${err}`)
-            setError('Session interrupted.')
-            setState('error')
+        } catch (err: any) {
+            // A 404 means the browser session was closed cleanly (user hit
+            // "Finish & Close Session" while a reset poll was in-flight).
+            // Treat it as a normal end rather than an error.
+            if (err?.message?.includes('404') || String(err).includes('No active browser')) {
+                setState('idle')
+            } else {
+                addLog(`Error: ${err}`)
+                setError('Session interrupted.')
+                setState('error')
+            }
         } finally {
             if (statusPoller) clearInterval(statusPoller)
             setIsCapturing(false)
