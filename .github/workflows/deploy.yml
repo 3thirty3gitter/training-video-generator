@@ -36,6 +36,9 @@ jobs:
             rm /tmp/tvg-deploy.tar.gz
             docker compose build
             docker compose up -d
+            # Pick up nginx config changes (bind-mounted dir, needs reload)
+            docker exec tvg-nginx nginx -t
+            docker exec tvg-nginx nginx -s reload
             docker image prune -f
           '
 

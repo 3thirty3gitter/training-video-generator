@@ -30,8 +30,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./deploy/.htpasswd:/etc/nginx/.htpasswd:ro
+      # Whole deploy dir (nginx.conf as conf.d/nginx.conf + .htpasswd).
+      # Directory mount (not single files): file replacements by CI tar
+      # extraction get new inodes, which stale out single-file binds.
+      - ./deploy:/etc/nginx/conf.d:ro
       # TLS certificates (issued by certbot on the host)
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./deploy/certbot-www:/var/www/certbot:ro
