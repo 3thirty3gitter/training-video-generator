@@ -19,7 +19,11 @@ const RECORDINGS_DIR = path.join(process.cwd(), 'public', 'recordings');
 
 export async function startRecording(page: Page): Promise<string> {
     if (currentRecorder) {
-        throw new Error('A recording is already in progress');
+        // Already recording — return the current path rather than crashing.
+        // This happens when the app fires a second /capture poll request
+        // while the first recording is still in progress.
+        debugLog(`[Video] startRecording called but already recording — ignoring duplicate`);
+        return currentVideoPath ? `/recordings/${path.basename(currentVideoPath)}` : '';
     }
 
     if (!fs.existsSync(RECORDINGS_DIR)) {

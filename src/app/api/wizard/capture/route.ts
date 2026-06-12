@@ -81,7 +81,12 @@ async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video'
 
                         if (interaction === 'start_recording') {
                             console.log('Wizard: Starting screen recorder...');
-                            await startRecording(page);
+                            const webPath = await startRecording(page);
+                            // Clear the interaction flag on the page immediately so
+                            // concurrent capture poll requests don't re-detect it
+                            await page.evaluate(() => {
+                                (window as any)._GEMINI_WIZARD_INTERACTION = null;
+                            }).catch(() => {});
                             return { action: 'started_recording', title: await page.title() };
                         }
 
