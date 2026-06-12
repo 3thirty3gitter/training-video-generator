@@ -5,7 +5,7 @@ import { GoogleAIFileManager, FileState } from '@google/generative-ai/server'
 import path from 'path'
 import fs from 'fs'
 
-export async function processAndAnalyzeVideo() {
+export async function processAndAnalyzeVideo(pageTitle?: string) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
         throw new Error('Missing Gemini API Key');
@@ -64,9 +64,9 @@ export async function processAndAnalyzeVideo() {
         } else {
             console.log(`[Video Analysis] Video ready for analysis.`);
 
-            // 4. Analyze with Gemini 2.0 Flash
+            // 4. Analyze with Gemini 2.5 Flash
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
             const prompt = "Analyze this software interaction video. Describe what the user is doing and write a 2-sentence narration for a tutorial. Start with 'In this step...'";
             const result = await model.generateContent([
@@ -97,7 +97,7 @@ export async function processAndAnalyzeVideo() {
 
     return {
         success: true,
-        title: 'Video Action',
+        title: pageTitle || 'Recorded Step',
         narration: narration,
         videoUrl: webUrl,
         screenshot: webUrl,
