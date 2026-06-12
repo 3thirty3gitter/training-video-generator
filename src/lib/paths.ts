@@ -12,8 +12,13 @@ export function getAppRoot(): string {
 
 /**
  * Resolve the FFmpeg binary path.
+ * Honors the FFMPEG_PATH env var (e.g. system ffmpeg in Docker),
+ * otherwise falls back to the npm-installed binary.
  */
 export function getFfmpegPath(): string {
+    if (process.env.FFMPEG_PATH) {
+        return process.env.FFMPEG_PATH;
+    }
     return path.join(
         getAppRoot(),
         'node_modules',
@@ -25,8 +30,13 @@ export function getFfmpegPath(): string {
 
 /**
  * Resolve the FFprobe binary path.
+ * Honors the FFPROBE_PATH env var (e.g. system ffprobe in Docker),
+ * otherwise falls back to the npm-installed binary.
  */
 export function getFfprobePath(): string {
+    if (process.env.FFPROBE_PATH) {
+        return process.env.FFPROBE_PATH;
+    }
     return path.join(
         getAppRoot(),
         'node_modules',

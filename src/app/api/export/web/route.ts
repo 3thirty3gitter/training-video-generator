@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 
+// Must be dynamic: reads project_data.json at request time.
+// Without this, Next.js pre-renders the response at build time.
+export const dynamic = 'force-dynamic'
+
 const STORAGE_PATH = path.join(process.cwd(), 'project_data.json')
 const TEMPLATE_PATH = path.join(process.cwd(), 'src', 'lib', 'export-template.html')
 
