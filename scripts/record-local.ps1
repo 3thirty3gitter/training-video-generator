@@ -34,11 +34,27 @@ if (-not $browser) {
 }
 Write-Host "Browser: $browser"
 
-# --- 2. Launch it with a dedicated recording profile + debug port ---
+# --- 2. Clean up any stale recorder instance, then launch ---
 $profileDir = Join-Path $env:LOCALAPPDATA "tvg-recorder-profile"
+
+# A previous recorder Chrome holding the profile/port causes silent bind
+# failures (Chrome runs but debugging never comes up)
+Get-CimInstance Win32_Process -Filter "Name='chrome.exe' OR Name='msedge.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -match [regex]::Escape($profileDir) } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
+$portHolder = Get-NetTCPConnection -LocalPort $DebugPort -State Listen -ErrorAction SilentlyContinue
+if ($portHolder) {
+    Write-Host "ERROR: Port $DebugPort is already in use by PID $($portHolder[0].OwningProcess). Close that program first." -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# Note: no embedded quotes around the profile path - %LOCALAPPDATA% has no
+# spaces, and mangled quoting breaks Chrome's argument parsing
 Start-Process -FilePath $browser -ArgumentList @(
     "--remote-debugging-port=$DebugPort",
-    "--user-data-dir=`"$profileDir`"",
+    "--user-data-dir=$profileDir",
     "--no-first-run",
     "--no-default-browser-check",
     "--new-window",
