@@ -54,8 +54,55 @@ async function ensureDisplay(): Promise<void> {
 const SESSION_FILE = path.resolve('./.puppeteer_session')
 const USER_DATA_DIR = path.resolve('./.puppeteer_data')
 
+// "Local browser mode": when the user runs scripts/record-local.bat on their
+// PC, it opens their own Chrome with a CDP debug port and reverse-tunnels it
+// to this address (the docker network gateway on the VPS). If reachable, the
+// wizard drives the user's real local browser instead of a server-side one.
+const LOCAL_BROWSER_URL = process.env.LOCAL_BROWSER_URL || ''
+
 interface BrowserSession {
     browserWSEndpoint: string
+    // 'local' = user's own browser over tunnel (disconnect, never close)
+    // 'server' = chromium launched on the server (close on stop)
+    mode?: 'local' | 'server'
+}
+
+function readSessionFile(): BrowserSession | null {
+    try {
+        return JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'))
+    } catch {
+        return null
+    }
+}
+
+async function tryConnectLocalBrowser(): Promise<Browser | null> {
+    if (!LOCAL_BROWSER_URL) return null
+    try {
+        const ctrl = new AbortController()
+        const timer = setTimeout(() => ctrl.abort(), 1500)
+        const res = await fetch(`${LOCAL_BROWSER_URL}/json/version`, { signal: ctrl.signal })
+        clearTimeout(timer)
+        if (!res.ok) return null
+
+        const info = await res.json() as { webSocketDebuggerUrl?: string }
+        if (!info.webSocketDebuggerUrl) return null
+
+        // Chrome reports the ws URL based on the request Host header, but
+        // normalize it to the tunnel address to be safe
+        const ws = info.webSocketDebuggerUrl.replace(
+            /^ws:\/\/[^/]+/,
+            LOCAL_BROWSER_URL.replace(/^http/, 'ws')
+        )
+
+        const browser = await puppeteer.connect({
+            browserWSEndpoint: ws,
+            defaultViewport: null,
+        })
+        console.log('🖥️  Connected to USER\'S LOCAL browser via tunnel — local mode active')
+        return browser
+    } catch {
+        return null
+    }
 }
 
 export async function getBrowserSession(): Promise<Browser | null> {
@@ -92,6 +139,18 @@ export async function createBrowserSession(): Promise<Browser> {
         return existing
     }
 
+    // Prefer the user's own local browser if the record-local tunnel is up
+    const localBrowser = await tryConnectLocalBrowser()
+    if (localBrowser) {
+        const session: BrowserSession = {
+            browserWSEndpoint: localBrowser.wsEndpoint(),
+            mode: 'local',
+        }
+        fs.writeFileSync(SESSION_FILE, JSON.stringify(session))
+        console.log(`💾 Saved local-mode browser session to ${SESSION_FILE}`)
+        return localBrowser
+    }
+
     console.log('🚀 Launching new browser session...')
     await ensureDisplay()
 
@@ -121,7 +180,8 @@ export async function createBrowserSession(): Promise<Browser> {
     })
 
     const session: BrowserSession = {
-        browserWSEndpoint: browser.wsEndpoint()
+        browserWSEndpoint: browser.wsEndpoint(),
+        mode: 'server',
     }
 
     fs.writeFileSync(SESSION_FILE, JSON.stringify(session))
@@ -132,10 +192,17 @@ export async function createBrowserSession(): Promise<Browser> {
 
 export async function closeBrowserSession() {
     try {
+        const sessionInfo = readSessionFile()
         const browser = await getBrowserSession()
         if (browser) {
-            console.log('🛑 Closing browser session...')
-            await browser.close()
+            if (sessionInfo?.mode === 'local') {
+                // The user's own browser - detach but never close their window
+                console.log('🛑 Detaching from local browser (leaving it open)...')
+                browser.disconnect()
+            } else {
+                console.log('🛑 Closing browser session...')
+                await browser.close()
+            }
         }
     } catch (error) {
         console.error('Error closing browser:', error)
