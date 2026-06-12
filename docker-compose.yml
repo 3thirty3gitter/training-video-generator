@@ -1,0 +1,48 @@
+services:
+  app:
+    build: .
+    image: training-video-generator:latest
+    container_name: tvg-app
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    # Chromium needs a larger shared memory segment than Docker's 64MB default
+    shm_size: "1gb"
+    volumes:
+      # Project state (flat-file "database")
+      - ./data/project_data.json:/app/project_data.json
+      # User-generated media
+      - ./data/audio:/app/public/audio
+      - ./data/music:/app/public/music
+      - ./data/recordings:/app/public/recordings
+      - ./data/exports:/app/public/exports
+      # Persistent browser profile (cookies/logins for captured sites)
+      - puppeteer_profile:/app/.puppeteer_data
+    expose:
+      - "3456"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: tvg-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/.htpasswd:/etc/nginx/.htpasswd:ro
+      # TLS certificates (issued by certbot on the host)
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./deploy/certbot-www:/var/www/certbot:ro
+      # Serve runtime-generated media directly (Next.js prod won't serve
+      # public/ files created after build)
+      - ./data/exports:/srv/media/exports:ro
+      - ./data/audio:/srv/media/audio:ro
+      - ./data/music:/srv/media/music:ro
+      - ./data/recordings:/srv/media/recordings:ro
+    depends_on:
+      - app
+
+volumes:
+  puppeteer_profile:
