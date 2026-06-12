@@ -94,6 +94,14 @@ export async function createBrowserSession(): Promise<Browser> {
 
     console.log('🚀 Launching new browser session...')
     await ensureDisplay()
+
+    // No tracked session exists, so any Singleton* lock files in the profile
+    // are stale (e.g. left by a previous container or a crashed Chrome) and
+    // would block the launch with "profile in use by another computer".
+    for (const lock of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+        try { fs.rmSync(path.join(USER_DATA_DIR, lock), { force: true }) } catch { }
+    }
+
     const isWindows = process.platform === 'win32'
     const browser = await puppeteer.launch({
         headless: false, // Always visible for interactive mode
