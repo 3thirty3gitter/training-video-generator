@@ -46,6 +46,7 @@ test-ffmpeg.js
 setup-kokoro.js
 *-debug.log
 wizard_debug.log
+.wizard-status
 
 # Python Cache
 __pycache__/
