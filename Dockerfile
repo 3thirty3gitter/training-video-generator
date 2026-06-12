@@ -37,12 +37,16 @@ ENV NODE_ENV=production \
     FFMPEG_PATH=/usr/bin/ffmpeg \
     FFPROBE_PATH=/usr/bin/ffprobe
 
-# System deps: browser, video tooling, virtual display, fonts
+# System deps: browser, video tooling, virtual display + VNC streaming, fonts
 RUN apt-get update && apt-get install -y --no-install-recommends \
         chromium \
         ffmpeg \
         xvfb \
         xauth \
+        x11-utils \
+        x11vnc \
+        novnc \
+        websockify \
         ca-certificates \
         fonts-liberation \
         fonts-noto-color-emoji \
@@ -59,12 +63,13 @@ COPY src ./src
 COPY next.config.js ./
 COPY generate_kokoro.py ./
 COPY project_data.json ./
+COPY deploy/entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
-EXPOSE 3456
+EXPOSE 3456 6080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:3456').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-# xvfb-run provides a virtual display for headless:false browser launches
-CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1920x1080x24", \
-     "node", "node_modules/next/dist/bin/next", "start", "-p", "3456"]
+# Fixed display :99 + x11vnc/noVNC streaming + Next.js (see deploy/entrypoint.sh)
+CMD ["/entrypoint.sh"]
