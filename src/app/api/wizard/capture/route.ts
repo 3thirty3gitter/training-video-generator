@@ -4,6 +4,7 @@ import { getBrowserSession } from '@/lib/browser-session'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { processAndAnalyzeVideo } from '@/lib/video-analysis'
 import { startRecording } from '@/lib/video-recorder'
+import { setWizardStatus } from '@/lib/wizard-status'
 import path from 'path'
 import fs from 'fs'
 
@@ -87,6 +88,7 @@ async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video'
                             await page.evaluate(() => {
                                 (window as any)._GEMINI_WIZARD_INTERACTION = null;
                             }).catch(() => {});
+                            setWizardStatus('recording')
                             return { action: 'started_recording', title: await page.title() };
                         }
 
@@ -95,6 +97,7 @@ async function waitForWizardInteraction(browser: any, mode: 'snapshot' | 'video'
                             // before ffmpeg flushes — keeps the overlay out of
                             // the last frames of the recording
                             await new Promise(r => setTimeout(r, 400));
+                            setWizardStatus('analyzing')
                             return { action: 'stop_recording', page };
                         }
 
@@ -280,6 +283,7 @@ export async function POST(request: NextRequest) {
             console.log('Wizard: Browser triggered STOP. Processing analysis...');
             const pageTitle = await result.page.title().catch(() => 'Recorded Step');
             const data = await processAndAnalyzeVideo(pageTitle);
+            setWizardStatus('idle')
             return NextResponse.json(data);
         }
 
